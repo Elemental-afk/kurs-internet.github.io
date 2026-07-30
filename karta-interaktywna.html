@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jak działa internet? — interaktywna karta ucznia</title>
+<style>
+  :root{
+    --abyss:#071A26;
+    --hull:#0E2C3C;
+    --hull-2:#15394B;
+    --edge:#1E4B60;
+    --fiber:#4FE0C4;
+    --signal:#FFB43F;
+    --fault:#FF6B6B;
+    --foam:#D6E7EE;
+    --mist:#7EA0AE;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "DejaVu Sans Mono", monospace;
+    --sans: "Segoe UI", Roboto, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1200px 500px at 85% -10%, rgba(79,224,196,.10), transparent 60%),
+      radial-gradient(900px 400px at 5% 5%, rgba(255,180,63,.06), transparent 60%),
+      var(--abyss);
+    color:var(--foam);
+    font-family:var(--sans);
+    font-size:16px;
+    line-height:1.6;
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:1000px;margin:0 auto;padding:0 20px 80px}
+
+  /* ---------- eyebrow / label type ---------- */
+  .label{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color:var(--mist);
+  }
+
+  /* ---------- masthead ---------- */
+  .mast{padding:44px 0 20px}
+  .mast h1{
+    font-family:var(--mono);
+    font-size:clamp(26px,5.2vw,46px);
+    line-height:1.05;
+    letter-spacing:-.01em;
+    font-weight:700;
+    margin:12px 0 14px;
+  }
+  .mast h1 em{font-style:normal;color:var(--fiber)}
+  .mast p{max-width:62ch;color:var(--foam);margin:0}
+  .mast .sub{color:var(--mist);font-size:15px;margin-top:10px}
+
+  /* ---------- the cable: signature element ---------- */
+  .cable{
+    position:relative;
+    margin:30px 0 8px;
+    padding:22px 0 6px;
+  }
+  .cable__track{
+    position:absolute;left:9px;right:9px;top:32px;height:2px;
+    background:var(--edge);border-radius:2px;
+  }
+  .cable__fill{
+    position:absolute;left:9px;top:32px;height:2px;width:0;
+    background:linear-gradient(90deg,var(--fiber),var(--signal));
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(79,224,196,.6);
+    transition:width .6s ease;
+  }
+  .hops{position:relative;display:flex;justify-content:space-between;gap:8px;list-style:none;margin:0;padding:0}
+  .hops li{flex:1 1 0;text-align:center}
+  .hop{
+    display:block;width:100%;background:none;border:0;padding:0;cursor:pointer;
+    color:var(--mist);font-family:var(--mono);font-size:11px;letter-spacing:.12em;
+    text-transform:uppercase;
+  }
+  .hop__dot{
+    width:20px;height:20px;margin:0 auto 10px;border-radius:50%;
+    background:var(--abyss);border:2px solid var(--edge);
+    display:flex;align-items:center;justify-content:center;
+    font-size:10px;color:var(--mist);
+    transition:border-color .3s, color .3s, box-shadow .3s;
+  }
+  .hop:hover .hop__dot,.hop:focus-visible .hop__dot{border-color:var(--fiber)}
+  .hop.is-done .hop__dot{border-color:var(--fiber);color:var(--fiber);box-shadow:0 0 14px rgba(79,224,196,.45)}
+  .hop.is-done{color:var(--fiber)}
+  .hop__name{display:block;color:inherit}
+
+  /* ---------- boot strip ---------- */
+  .boot{
+    margin:26px 0 0;border:1px solid var(--edge);border-radius:10px;
+    background:var(--hull);padding:14px 16px;
+    font-family:var(--mono);font-size:13px;color:var(--mist);
+  }
+  .boot b{color:var(--fiber);font-weight:600}
+  .boot.is-fail{border-color:var(--fault)}
+  .boot.is-fail b{color:var(--fault)}
+  .boot.is-ready{border-color:rgba(79,224,196,.5)}
+  .boot__line{margin:2px 0}
+
+  /* ---------- cards ---------- */
+  .card{
+    margin:34px 0 0;border:1px solid var(--edge);border-radius:14px;
+    background:var(--hull);overflow:hidden;
+  }
+  .card__head{
+    padding:18px 20px 16px;border-bottom:1px solid var(--edge);
+    background:linear-gradient(180deg, rgba(255,255,255,.03), transparent);
+  }
+  .card__head h2{
+    font-family:var(--mono);font-size:20px;font-weight:700;margin:8px 0 8px;letter-spacing:-.01em;
+  }
+  .card__head p{margin:0;color:var(--foam);max-width:66ch}
+  .card__body{padding:20px}
+
+  .grid{display:grid;grid-template-columns:1.55fr 1fr;gap:16px}
+  @media (max-width:760px){ .grid{grid-template-columns:1fr} }
+
+  .field{display:flex;flex-direction:column;min-width:0}
+  .field > .label{margin-bottom:7px}
+  textarea{
+    width:100%;background:var(--abyss);color:var(--foam);
+    border:1px solid var(--edge);border-radius:10px;padding:12px 13px;
+    font-family:var(--mono);font-size:13.5px;line-height:1.65;
+    resize:vertical;tab-size:4;
+  }
+  textarea:focus-visible{outline:2px solid var(--fiber);outline-offset:1px;border-color:var(--fiber)}
+  .code{min-height:250px}
+  .stdin{min-height:110px}
+  .hint-inline{font-size:12.5px;color:var(--mist);margin-top:7px;font-family:var(--mono);line-height:1.5}
+
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:16px}
+  .btn{
+    font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;
+    border-radius:9px;padding:11px 16px;cursor:pointer;border:1px solid var(--edge);
+    background:var(--hull-2);color:var(--foam);
+  }
+  .btn:hover:not(:disabled){border-color:var(--fiber)}
+  .btn:focus-visible{outline:2px solid var(--fiber);outline-offset:2px}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn--run{background:var(--fiber);color:#04141C;border-color:var(--fiber);font-weight:700}
+  .btn--run:hover:not(:disabled){filter:brightness(1.08)}
+  .kbd{font-family:var(--mono);font-size:11px;color:var(--mist);margin-left:2px}
+
+  .console{
+    margin-top:16px;border:1px solid var(--edge);border-left:3px solid var(--edge);
+    border-radius:10px;background:#04141C;padding:14px 15px;
+    font-family:var(--mono);font-size:13.5px;line-height:1.6;
+    white-space:pre-wrap;word-break:break-word;min-height:56px;color:var(--foam);
+  }
+  .console.is-ok{border-left-color:var(--fiber)}
+  .console.is-err{border-left-color:var(--fault)}
+  .console .err{color:var(--fault)}
+  .console .muted{color:var(--mist)}
+
+  details{margin-top:14px;border-top:1px solid var(--edge);padding-top:12px}
+  summary{
+    cursor:pointer;font-family:var(--mono);font-size:12px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--signal);
+  }
+  summary:focus-visible{outline:2px solid var(--fiber);outline-offset:3px}
+  details .inner{margin-top:12px;color:var(--foam);font-size:15px}
+  details pre{
+    background:var(--abyss);border:1px solid var(--edge);border-radius:9px;
+    padding:12px 13px;overflow-x:auto;font-family:var(--mono);font-size:13px;margin:10px 0 0;
+  }
+
+  table{width:100%;border-collapse:collapse;margin-top:6px;font-size:14.5px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--edge)}
+  th{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mist);font-weight:500}
+  td.num{font-family:var(--mono)}
+  .pick{
+    background:var(--hull-2);border:1px solid var(--edge);color:var(--fiber);
+    font-family:var(--mono);font-size:11.5px;border-radius:7px;padding:5px 10px;cursor:pointer;
+  }
+  .pick:hover{border-color:var(--fiber)}
+  .pick:focus-visible{outline:2px solid var(--fiber);outline-offset:2px}
+
+  .note{
+    border-left:3px solid var(--signal);background:rgba(255,180,63,.07);
+    padding:12px 15px;border-radius:0 9px 9px 0;margin:18px 0 0;font-size:14.5px;
+  }
+  .note .label{color:var(--signal);display:block;margin-bottom:5px}
+
+  .prose h3{font-family:var(--mono);font-size:15px;margin:26px 0 8px;letter-spacing:.02em}
+  .prose ul{padding-left:22px;margin:8px 0}
+  .prose li{margin:6px 0}
+  .prose code, .ic{
+    font-family:var(--mono);font-size:.92em;background:var(--hull-2);
+    padding:2px 6px;border-radius:5px;color:var(--fiber);
+  }
+  .foot{margin-top:44px;padding-top:20px;border-top:1px solid var(--edge);color:var(--mist);font-size:13.5px}
+  .stack{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;animation:none !important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="mast">
+    <span class="label">Zajęcia dodatkowe · Python · 45 minut</span>
+    <h1>Jak działa <em>internet</em>?</h1>
+    <p>Trzy zadania. Za każdym z nich stoi prawdziwy element internetu, który zaraz zbudujesz sam — kalkulator granicy fizyki, tablica routingu i pobieranie strony bez przeglądarki.</p>
+    <p class="sub">Python działa tutaj, w tej karcie. Nic nie musisz instalować.</p>
+  </header>
+
+  <nav class="cable" aria-label="Trasa pakietu">
+    <div class="cable__track"></div>
+    <div class="cable__fill" id="fill"></div>
+    <ul class="hops">
+      <li><button class="hop" data-go="z1"><span class="hop__dot" id="dot1">1</span><span class="hop__name">Granica fizyki</span></button></li>
+      <li><button class="hop" data-go="z2"><span class="hop__dot" id="dot2">2</span><span class="hop__name">Router</span></button></li>
+      <li><button class="hop" data-go="z3"><span class="hop__dot" id="dot3">3</span><span class="hop__name">Strona</span></button></li>
+    </ul>
+  </nav>
+
+  <div class="boot" id="boot" role="status" aria-live="polite">
+    <div class="boot__line">uruchamiam Pythona w przeglądarce… <b id="bootpct">0%</b></div>
+    <div class="boot__line muted" id="bootnote">pierwsze uruchomienie trwa 5–20 sekund, potem jest natychmiastowe</div>
+  </div>
+
+  <!-- ============ ZADANIE 1 ============ -->
+  <section class="card" id="z1">
+    <div class="card__head">
+      <span class="label">Skok 01 · z twojego komputera w kabel</span>
+      <h2>Detektor CDN-u</h2>
+      <p>W światłowodzie światło leci około <strong>200 000 km/s</strong> — dwie trzecie swojej maksymalnej prędkości. Tego nie przeskoczy żaden serwer, żadne 5G i żadne pieniądze. Policz więc, ile ping <em>musi</em> trwać co najmniej, a potem sprawdź, czy rzeczywistość się z tym zgadza.</p>
+    </div>
+    <div class="card__body">
+      <div class="grid">
+        <div class="field">
+          <span class="label">twój kod</span>
+          <textarea class="code" id="code1" spellcheck="false" autocapitalize="off"></textarea>
+          <div class="hint-inline">Tab = wcięcie · Ctrl+Enter = uruchom</div>
+        </div>
+        <div class="field">
+          <span class="label">dane wejściowe</span>
+          <textarea class="stdin" id="in1" spellcheck="false" autocapitalize="off"></textarea>
+          <div class="hint-inline">Jedna linia na każdy input(). Tu program nie pyta cię na żywo — dane podajesz z góry, tak jak robi to prawdziwy serwer.</div>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn btn--run" data-run="1" disabled>Uruchom</button>
+        <button class="btn" data-reset="1">Kod startowy</button>
+      </div>
+      <div class="console" id="out1"><span class="muted">Wyjście programu pojawi się tutaj.</span></div>
+
+      <table>
+        <thead><tr><th>Trasa z Warszawy</th><th>Dystans w linii prostej</th><th>Typowy realny ping</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>Berlin</td><td class="num">520 km</td><td class="num">~20 ms</td><td><button class="pick" data-fill="1" data-d="520" data-p="20">wstaw</button></td></tr>
+          <tr><td>Nowy Jork</td><td class="num">6 850 km</td><td class="num">~100 ms</td><td><button class="pick" data-fill="1" data-d="6850" data-p="100">wstaw</button></td></tr>
+          <tr><td>Tokio</td><td class="num">8 580 km</td><td class="num">~230 ms</td><td><button class="pick" data-fill="1" data-d="8580" data-p="230">wstaw</button></td></tr>
+          <tr><td>Sydney</td><td class="num">15 350 km</td><td class="num">~290 ms</td><td><button class="pick" data-fill="1" data-d="15350" data-p="290">wstaw</button></td></tr>
+          <tr><td>Google (Kalifornia)</td><td class="num">9 500 km</td><td class="num">~15 ms</td><td><button class="pick" data-fill="1" data-d="9500" data-p="15">wstaw</button></td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <span class="label">Zrób to koniecznie</span>
+        Podane pingi to typowe wartości z Polski — rząd wielkości, nie pomiar. <strong>Zmierz swoje własne:</strong> otwórz terminal i wpisz <code class="ic">ping www.google.com</code>. Prawdziwa liczba jest ciekawsza od mojej. Terminal nie działa w tej karcie — internet nie pozwala stronom pingować za ciebie, i bardzo dobrze.
+      </div>
+      <div class="note">
+        <span class="label">Pytanie za całą lekcję</span>
+        Wstaw wiersz „Google" i uruchom program. Google jest w Kalifornii, 9 500 km stąd, a odpowiedź wraca w 15 ms. Fizyka mówi: minimum 95 ms. <strong>Kto tu kłamie?</strong>
+      </div>
+
+      <details>
+        <summary>Podpowiedź</summary>
+        <div class="inner">
+          <p>Dwa nowe narzędzia, oba na jedną linijkę:</p>
+          <ul>
+            <li><code class="ic">float("12.5")</code> — jak <code class="ic">int()</code>, ale przyjmuje liczby z kropką.</li>
+            <li><code class="ic">round(x, 1)</code> — zaokrągla do jednego miejsca po przecinku.</li>
+          </ul>
+          <p>Kolejność: dystans w kilometrach podziel przez prędkość w km/s — dostaniesz sekundy. Sekundy razy 1000 to milisekundy. A ping to droga <em>tam i z powrotem</em>, czyli razy dwa.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Pokaż rozwiązanie</summary>
+        <div class="inner">
+<pre># Task 1: how fast CAN data travel?
+
+distance_km = float(input("Dystans w km: "))
+speed = 200000  # km/s - light in fiber optic cable
+
+one_way_ms = distance_km / speed * 1000
+round_trip_ms = 2 * one_way_ms
+
+print("Minimalny możliwy ping:", round(round_trip_ms, 1), "ms")
+
+real_ping = float(input("A ile pokazał prawdziwy ping? "))
+
+if real_ping &lt; round_trip_ms:
+    print("NIEMOŻLIWE. Dane nie przyleciały z tak daleka.")
+    print("Ktoś trzyma kopię blisko ciebie. To CDN.")
+elif real_ping &lt; round_trip_ms * 1.5:
+    print("Prawie na granicy fizyki. Kabel biegnie niemal prosto.")
+else:
+    print("Dużo dłużej niż linia prosta - kabel nadłożył drogi.")</pre>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============ ZADANIE 2 ============ -->
+  <section class="card" id="z2">
+    <div class="card__head">
+      <span class="label">Skok 02 · przez kilkanaście routerów</span>
+      <h2>Jesteś routerem</h2>
+      <p>Żaden router na świecie nie zna całej trasy pakietu. Każdy wie tylko jedno: „dla takich adresów — podaj dalej temu sąsiadowi". Nikt nie ma mapy całości, nie ma centrali, nie ma wyłącznika. To, co napiszesz poniżej, nazywa się <strong>tablicą routingu</strong>: seria ifów, po kolei, pierwszy pasujący wygrywa. Tak działa każdy router na świecie.</p>
+    </div>
+    <div class="card__body">
+      <div class="grid">
+        <div class="field">
+          <span class="label">twój kod</span>
+          <textarea class="code" id="code2" spellcheck="false" autocapitalize="off"></textarea>
+          <div class="hint-inline">Tab = wcięcie · Ctrl+Enter = uruchom</div>
+        </div>
+        <div class="field">
+          <span class="label">dane wejściowe</span>
+          <textarea class="stdin" id="in2" spellcheck="false" autocapitalize="off"></textarea>
+          <div class="hint-inline">Pierwsza linia: adres IP. Druga: TTL.</div>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn btn--run" data-run="2" disabled>Uruchom</button>
+        <button class="btn" data-reset="2">Kod startowy</button>
+      </div>
+      <div class="console" id="out2"><span class="muted">Wyjście programu pojawi się tutaj.</span></div>
+
+      <table>
+        <thead><tr><th>Pakiet</th><th>TTL</th><th>Co powinno się stać?</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="num">192.168.1.7</td><td class="num">5</td><td>sąsiad z twojej sieci</td><td><button class="pick" data-fill="2" data-ip="192.168.1.7" data-ttl="5">wstaw</button></td></tr>
+          <tr><td class="num">8.8.8.8</td><td class="num">9</td><td>DNS Google, dużo życia</td><td><button class="pick" data-fill="2" data-ip="8.8.8.8" data-ttl="9">wstaw</button></td></tr>
+          <tr><td class="num">8.8.8.8</td><td class="num">2</td><td>ten sam cel, ale TTL prawie zjedzony</td><td><button class="pick" data-fill="2" data-ip="8.8.8.8" data-ttl="2">wstaw</button></td></tr>
+          <tr><td class="num">142.250.1.1</td><td class="num">0</td><td>pakiet już nie żyje</td><td><button class="pick" data-fill="2" data-ip="142.250.1.1" data-ttl="0">wstaw</button></td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <span class="label">Nowe narzędzie</span>
+        <code class="ic">tekst.startswith("192.168.")</code> sprawdza, czy tekst <em>zaczyna się</em> od czegoś, i zwraca <code class="ic">True</code> albo <code class="ic">False</code>. Prawdziwe routery robią dokładnie to — patrzą na początek adresu, nie na całość. Początek adresu mówi „w którą stronę świata", a nie „która to konkretna maszyna".
+      </div>
+      <div class="note">
+        <span class="label">Kiedy skończysz — rozbuduj router</span>
+        <strong>1. Firewall:</strong> adresy zaczynające się od <code class="ic">203.0.113.</code> to atak, odrzucaj je. Zastanów się, w którym miejscu musi stanąć ten <code class="ic">if</code>, żeby naprawdę działał.<br>
+        <strong>2. Priorytet:</strong> dodaj trzecie pytanie o numer portu. Ruch rozmowy głosowej (port <code class="ic">5060</code>) przepuszczaj z komunikatem <code class="ic">FAST LANE</code> nawet przy małym TTL — w rozmowie opóźnienie boli bardziej niż jeden zgubiony pakiet.<br>
+        <strong>3. Pytanie:</strong> zamień dwa <code class="ic">elif</code> miejscami i uruchom ponownie. Zepsuje się. Zrozum dlaczego — w tym jednym zdaniu siedzi cała istota tablicy routingu.
+      </div>
+
+      <details>
+        <summary>Podpowiedź</summary>
+        <div class="inner">
+          <p>Kolejność warunków to nie kosmetyka, to logika. Zapytaj najpierw o rzeczy, które przerywają wszystko inne (martwy pakiet, atak), potem o przypadki szczegółowe, a na końcu zrób <code class="ic">else</code> jako „nie wiem, oddaję to komuś mądrzejszemu". Ten ostatni przypadek nazywa się w sieciach <em>trasą domyślną</em> i to dzięki niemu twój domowy router radzi sobie z całym internetem, znając tylko kilka reguł.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Pokaż rozwiązanie</summary>
+        <div class="inner">
+<pre># Task 2: YOU are the router
+print("=== ROUTER WARSZAWA-1 ===")
+
+destination = input("Adres IP pakietu: ")
+ttl = int(input("TTL: "))
+
+if ttl &lt;= 0:
+    print("DROP - pakiet umarł ze starości.")
+elif destination.startswith("192.168.") or destination.startswith("10."):
+    print("LOCAL - to nasza sieć, dostarczam bezpośrednio.")
+elif destination.startswith("8.8.") and ttl &gt; 5:
+    print("FORWARD -&gt; Frankfurt, potem Google. Nowy TTL:", ttl - 1)
+elif destination.startswith("8.8."):
+    print("FORWARD -&gt; Frankfurt, ale TTL mały. Może nie dotrzeć.")
+else:
+    print("DEFAULT ROUTE -&gt; router nadrzędny. Nowy TTL:", ttl - 1)</pre>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============ ZADANIE 3 ============ -->
+  <section class="card" id="z3">
+    <div class="card__head">
+      <span class="label">Skok 03 · serwer odpowiada</span>
+      <h2>Pobierz stronę bez przeglądarki</h2>
+      <p>Pakiet doleciał. Co właściwie <em>mówi</em> serwerowi? Nic magicznego — HTTP to rozmowa tekstem. Ty piszesz <code class="ic">GET</code>, czyli „daj mi". Serwer odpowiada <code class="ic">200 OK</code>, czyli „proszę". A <code class="ic">404</code>, które widziałeś sto razy, to ta sama rozmowa z odpowiedzią „nie mam".</p>
+    </div>
+    <div class="card__body">
+      <div class="grid">
+        <div class="field">
+          <span class="label">twój kod</span>
+          <textarea class="code" id="code3" spellcheck="false" autocapitalize="off"></textarea>
+          <div class="hint-inline">Tab = wcięcie · Ctrl+Enter = uruchom</div>
+        </div>
+        <div class="field">
+          <span class="label">dane wejściowe</span>
+          <textarea class="stdin" id="in3" spellcheck="false" autocapitalize="off"></textarea>
+          <div class="hint-inline">Adres strony, jedna linia.</div>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn btn--run" data-run="3" disabled>Uruchom</button>
+        <button class="btn" data-reset="3">Kod startowy</button>
+      </div>
+      <div class="console" id="out3"><span class="muted">Wyjście programu pojawi się tutaj.</span></div>
+
+      <table>
+        <thead><tr><th>Strona</th><th>Rozmiar</th><th>Rok</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>Pierwsza strona w historii internetu</td><td class="num">2 217 znaków</td><td class="num">1992</td><td><button class="pick" data-fill="3" data-url="http://info.cern.ch/hypertext/WWW/TheProject.html">wstaw</button></td></tr>
+          <tr><td>Strona główna info.cern.ch</td><td class="num">646 znaków</td><td class="num">—</td><td><button class="pick" data-fill="3" data-url="http://info.cern.ch">wstaw</button></td></tr>
+          <tr><td>pypi.org — nowoczesna strona</td><td class="num">22 785 znaków</td><td class="num">2026</td><td><button class="pick" data-fill="3" data-url="https://pypi.org">wstaw</button></td></tr>
+        </tbody>
+      </table>
+
+      <div class="note">
+        <span class="label">Dlaczego tylko te trzy adresy</span>
+        Python działa tu wewnątrz przeglądarki, a przeglądarka z zasad bezpieczeństwa nie pozwala stronie pobierać dowolnych innych stron. Te trzy dokumenty są więc dołączone do karty — <strong>to prawdziwe, niezmienione pliki</strong>, pobrane z tych serwerów, razem z prawdziwą liczbą znaków. Twój kod jest dokładnie taki sam jak w prawdziwym Pythonie i w domu zadziała na każdym adresie.
+      </div>
+
+      <div class="note">
+        <span class="label">Popatrz na to uważnie</span>
+        Tak wygląda prawdziwa odpowiedź serwera na pytanie o pierwszą stronę w historii:
+<pre style="background:var(--abyss);border:1px solid var(--edge);border-radius:9px;padding:12px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;margin:10px 0 0">HTTP/1.1 200 OK
+date: Thu, 30 Jul 2026 14:56:36 GMT
+server: Apache
+last-modified: Thu, 03 Dec 1992 08:37:20 GMT
+content-length: 2217
+content-type: text/html</pre>
+        <p style="margin:10px 0 0">Przeczytaj linijkę <code class="ic">last-modified</code> jeszcze raz. Ten plik nie był zmieniany od <strong>3 grudnia 1992 roku</strong>. Leży na serwerze, pod tym samym adresem, dłużej niż ty żyjesz — i serwer wciąż grzecznie go podaje każdemu, kto zapyta.</p>
+      </div>
+
+      <details>
+        <summary>Podpowiedź</summary>
+        <div class="inner">
+          <p><code class="ic">import</code> znaczy: pożyczam gotowy kod od kogoś, kto już to napisał. Nie musisz rozumieć jego środka — programiści robią tak codziennie i to nie jest oszukiwanie, to jest zawód.</p>
+          <p>Przydadzą ci się dwie nowe rzeczy: <code class="ic">len(tekst)</code> mówi, ile tekst ma znaków, a <code class="ic">tekst[:500]</code> to „pierwsze 500 znaków".</p>
+        </div>
+      </details>
+      <details>
+        <summary>Pokaż rozwiązanie</summary>
+        <div class="inner">
+<pre># Task 3: download a real website
+import urllib.request
+
+url = input("Adres strony: ")
+answer = urllib.request.urlopen(url).read().decode("utf-8", "ignore")
+
+print("Dostałem", len(answer), "znaków. Pierwsze 500:")
+print(answer[:500])</pre>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============ PO LEKCJI ============ -->
+  <section class="card" id="dalej">
+    <div class="card__head">
+      <span class="label">Po lekcji</span>
+      <h2>Rzeczy, które karta nie umie za ciebie zrobić</h2>
+      <p>Ta karta ma Pythona, ale nie ma dostępu do sieci — i to nie jest usterka, to jest jedna z reguł, które trzymają internet w kupie. Prawdziwe pomiary robisz w terminalu.</p>
+    </div>
+    <div class="card__body prose">
+      <h3>Terminal</h3>
+      <table>
+        <thead><tr><th>Co chcesz zobaczyć</th><th>Windows</th><th>Mac / Linux</th></tr></thead>
+        <tbody>
+          <tr><td>czas podróży do serwera</td><td class="num">ping www.google.com</td><td class="num">ping -c 4 www.google.com</td></tr>
+          <tr><td>każdy router po drodze</td><td class="num">tracert www.anu.edu.au</td><td class="num">traceroute www.anu.edu.au</td></tr>
+          <tr><td>nazwa → adres IP</td><td class="num">nslookup youtube.com</td><td class="num">nslookup youtube.com</td></tr>
+          <tr><td>twój adres w sieci</td><td class="num">ipconfig</td><td class="num">ifconfig</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:12px">W wyniku <code class="ic">tracert</code> poszukaj w nazwach routerów skrótów miast i lotnisk: <code class="ic">waw</code>, <code class="ic">fra</code>, <code class="ic">lon</code>, <code class="ic">sin</code>, <code class="ic">syd</code>. Zobaczysz trasę swojego pakietu przez świat, skok po skoku.</p>
+
+      <h3>Wyzwania</h3>
+      <ul>
+        <li><strong>Detektyw CDN.</strong> Weź zadanie 1 i przetestuj pięć stron: coś polskiego, coś wielkiego i światowego, i coś z drugiego końca świata, co <em>nie</em> jest wielką firmą — na przykład uniwersytet w Japonii albo Australii. Która strona najmocniej łamie fizykę? To nie jest zadanie ze szkoły, to prawdziwy eksperyment: masz teorię i sprawdzasz ją pomiarem.</li>
+        <li><strong>Router 2.0.</strong> Zrób obie rozbudowy ze skoku 02 naraz, w poprawnej kolejności.</li>
+        <li><strong>Zliczacz.</strong> Nowe narzędzie: <code class="ic">tekst.count("http")</code> mówi, ile razy coś występuje. Pobierz stronę i policz linki. Pierwsza strona w historii ma 2 217 znaków. Strona główna <code class="ic">github.com</code> ma dziś 591 966 znaków — 267 razy więcej. Sprawdź to sam w prawdziwym Pythonie i zastanów się, co dokładnie robi te pozostałe 589 tysięcy znaków.</li>
+      </ul>
+
+      <h3>Czego dziś nie zrobiliśmy</h3>
+      <p>Wszystko, co dziś wysyłaliśmy, leciało otwartym tekstem. Każdy router po drodze mógł to przeczytać. Ta kłódka w przeglądarce — HTTPS — to jest to, co z tym robimy, i to jest temat na następny raz.</p>
+
+      <div class="stack">
+        <button class="btn" id="save">Zapisz moje rozwiązania do pliku</button>
+      </div>
+      <div class="note">
+        <span class="label">Uwaga</span>
+        Karta nie zapisuje kodu sama. Jeśli zamkniesz zakładkę, kod zniknie — na koniec lekcji kliknij przycisk powyżej.
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    Python działa w tej karcie przez Pyodide (CPython skompilowany do WebAssembly). Nic nie jest wysyłane na żaden serwer — cały kod wykonuje się na twoim komputerze.
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   dane: prawdziwe strony, dołączone do karty (base64, utf-8)
+   ============================================================ */
+const PAGES_B64 = {"http://info.cern.ch/hypertext/WWW/TheProject.html": "PEhFQURFUj4KPFRJVExFPlRoZSBXb3JsZCBXaWRlIFdlYiBwcm9qZWN0PC9USVRMRT4KPE5FWFRJRCBOPSI1NSI+CjwvSEVBREVSPgo8Qk9EWT4KPEgxPldvcmxkIFdpZGUgV2ViPC9IMT5UaGUgV29ybGRXaWRlV2ViIChXMykgaXMgYSB3aWRlLWFyZWE8QQpOQU1FPTAgSFJFRj0iV2hhdElzLmh0bWwiPgpoeXBlcm1lZGlhPC9BPiBpbmZvcm1hdGlvbiByZXRyaWV2YWwKaW5pdGlhdGl2ZSBhaW1pbmcgdG8gZ2l2ZSB1bml2ZXJzYWwKYWNjZXNzIHRvIGEgbGFyZ2UgdW5pdmVyc2Ugb2YgZG9jdW1lbnRzLjxQPgpFdmVyeXRoaW5nIHRoZXJlIGlzIG9ubGluZSBhYm91dApXMyBpcyBsaW5rZWQgZGlyZWN0bHkgb3IgaW5kaXJlY3RseQp0byB0aGlzIGRvY3VtZW50LCBpbmNsdWRpbmcgYW4gPEEKTkFNRT0yNCBIUkVGPSJTdW1tYXJ5Lmh0bWwiPmV4ZWN1dGl2ZQpzdW1tYXJ5PC9BPiBvZiB0aGUgcHJvamVjdCwgPEEKTkFNRT0yOSBIUkVGPSJBZG1pbmlzdHJhdGlvbi9NYWlsaW5nL092ZXJ2aWV3Lmh0bWwiPk1haWxpbmcgbGlzdHM8L0E+CiwgPEEKTkFNRT0zMCBIUkVGPSJQb2xpY3kuaHRtbCI+UG9saWN5PC9BPiAsIE5vdmVtYmVyJ3MgIDxBCk5BTUU9MzQgSFJFRj0iTmV3cy85MjExLmh0bWwiPlczICBuZXdzPC9BPiAsCjxBCk5BTUU9NDEgSFJFRj0iRkFRL0xpc3QuaHRtbCI+RnJlcXVlbnRseSBBc2tlZCBRdWVzdGlvbnM8L0E+IC4KPERMPgo8RFQ+PEEKTkFNRT00NCBIUkVGPSIuLi9EYXRhU291cmNlcy9Ub3AuaHRtbCI+V2hhdCdzIG91dCB0aGVyZT88L0E+CjxERD4gUG9pbnRlcnMgdG8gdGhlCndvcmxkJ3Mgb25saW5lIGluZm9ybWF0aW9uLDxBCk5BTUU9NDUgSFJFRj0iLi4vRGF0YVNvdXJjZXMvYnlTdWJqZWN0L092ZXJ2aWV3Lmh0bWwiPiBzdWJqZWN0czwvQT4KLCA8QQpOQU1FPXo1NCBIUkVGPSIuLi9EYXRhU291cmNlcy9XV1cvU2VydmVycy5odG1sIj5XMyBzZXJ2ZXJzPC9BPiwgZXRjLgo8RFQ+PEEKTkFNRT00NiBIUkVGPSJIZWxwLmh0bWwiPkhlbHA8L0E+CjxERD4gb24gdGhlIGJyb3dzZXIgeW91IGFyZSB1c2luZwo8RFQ+PEEKTkFNRT0xMyBIUkVGPSJTdGF0dXMuaHRtbCI+U29mdHdhcmUgUHJvZHVjdHM8L0E+CjxERD4gQSBsaXN0IG9mIFczIHByb2plY3QKY29tcG9uZW50cyBhbmQgdGhlaXIgY3VycmVudCBzdGF0ZS4KKGUuZy4gPEEKTkFNRT0yNyBIUkVGPSJMaW5lTW9kZS9Ccm93c2VyLmh0bWwiPkxpbmUgTW9kZTwvQT4gLFgxMSA8QQpOQU1FPTM1IEhSRUY9IlN0YXR1cy5odG1sIzM1Ij5WaW9sYTwvQT4gLCAgPEEKTkFNRT0yNiBIUkVGPSJOZVhUL1dvcmxkV2lkZVdlYi5odG1sIj5OZVhUU3RlcDwvQT4KLCA8QQpOQU1FPTI1IEhSRUY9IkRhZW1vbi9PdmVydmlldy5odG1sIj5TZXJ2ZXJzPC9BPiAsIDxBCk5BTUU9NTEgSFJFRj0iVG9vbHMvT3ZlcnZpZXcuaHRtbCI+VG9vbHM8L0E+ICw8QQpOQU1FPTUzIEhSRUY9Ik1haWxSb2JvdC9PdmVydmlldy5odG1sIj4gTWFpbCByb2JvdDwvQT4gLDxBCk5BTUU9NTIgSFJFRj0iU3RhdHVzLmh0bWwjNTciPgpMaWJyYXJ5PC9BPiApCjxEVD48QQpOQU1FPTQ3IEhSRUY9IlRlY2huaWNhbC5odG1sIj5UZWNobmljYWw8L0E+CjxERD4gRGV0YWlscyBvZiBwcm90b2NvbHMsIGZvcm1hdHMsCnByb2dyYW0gaW50ZXJuYWxzIGV0Ywo8RFQ+PEEKTkFNRT00MCBIUkVGPSJCaWJsaW9ncmFwaHkuaHRtbCI+QmlibGlvZ3JhcGh5PC9BPgo8REQ+IFBhcGVyIGRvY3VtZW50YXRpb24Kb24gIFczIGFuZCByZWZlcmVuY2VzLgo8RFQ+PEEKTkFNRT0xNCBIUkVGPSJQZW9wbGUuaHRtbCI+UGVvcGxlPC9BPgo8REQ+IEEgbGlzdCBvZiBzb21lIHBlb3BsZSBpbnZvbHZlZAppbiB0aGUgcHJvamVjdC4KPERUPjxBCk5BTUU9MTUgSFJFRj0iSGlzdG9yeS5odG1sIj5IaXN0b3J5PC9BPgo8REQ+IEEgc3VtbWFyeSBvZiB0aGUgaGlzdG9yeQpvZiB0aGUgcHJvamVjdC4KPERUPjxBCk5BTUU9MzcgSFJFRj0iSGVscGluZy5odG1sIj5Ib3cgY2FuIEkgaGVscDwvQT4gPwo8REQ+IElmIHlvdSB3b3VsZCBsaWtlCnRvIHN1cHBvcnQgdGhlIHdlYi4uCjxEVD48QQpOQU1FPTQ4IEhSRUY9Ii4uL1JFQURNRS5odG1sIj5HZXR0aW5nIGNvZGU8L0E+CjxERD4gR2V0dGluZyB0aGUgY29kZSBieTxBCk5BTUU9NDkgSFJFRj0iTGluZU1vZGUvRGVmYXVsdHMvRGlzdHJpYnV0aW9uLmh0bWwiPgphbm9ueW1vdXMgRlRQPC9BPiAsIGV0Yy48L0E+CjwvREw+CjwvQk9EWT4K", "http://info.cern.ch": "PGh0bWw+PGhlYWQ+PC9oZWFkPjxib2R5PjxoZWFkZXI+Cjx0aXRsZT5odHRwOi8vaW5mby5jZXJuLmNoPC90aXRsZT4KPC9oZWFkZXI+Cgo8aDE+aHR0cDovL2luZm8uY2Vybi5jaCAtIGhvbWUgb2YgdGhlIGZpcnN0IHdlYnNpdGU8L2gxPgo8cD5Gcm9tIGhlcmUgeW91IGNhbjo8L3A+Cjx1bD4KPGxpPjxhIGhyZWY9Imh0dHA6Ly9pbmZvLmNlcm4uY2gvaHlwZXJ0ZXh0L1dXVy9UaGVQcm9qZWN0Lmh0bWwiPkJyb3dzZSB0aGUgZmlyc3Qgd2Vic2l0ZTwvYT48L2xpPgo8bGk+PGEgaHJlZj0iaHR0cDovL2xpbmUtbW9kZS5jZXJuLmNoL3d3dy9oeXBlcnRleHQvV1dXL1RoZVByb2plY3QuaHRtbCI+QnJvd3NlIHRoZSBmaXJzdCB3ZWJzaXRlIHVzaW5nIHRoZSBsaW5lLW1vZGUgYnJvd3NlciBzaW11bGF0b3I8L2E+PC9saT4KPGxpPjxhIGhyZWY9Imh0dHA6Ly9ob21lLndlYi5jZXJuLmNoL3RvcGljcy9iaXJ0aC13ZWIiPkxlYXJuIGFib3V0IHRoZSBiaXJ0aCBvZiB0aGUgd2ViPC9hPjwvbGk+CjxsaT48YSBocmVmPSJodHRwOi8vaG9tZS53ZWIuY2Vybi5jaC9hYm91dCI+TGVhcm4gYWJvdXQgQ0VSTiwgdGhlIHBoeXNpY3MgbGFib3JhdG9yeSB3aGVyZSB0aGUgd2ViIHdhcyBib3JuPC9hPjwvbGk+CjwvdWw+CjwvYm9keT48L2h0bWw+Cg==", "https://pypi.org": "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImVuIiBkaXI9Imx0ciI+CiAgPGhlYWQ+CiAgICA8bWV0YSBjaGFyc2V0PSJ1dGYtOCI+CiAgICA8bWV0YSBodHRwLWVxdWl2PSJYLVVBLUNvbXBhdGlibGUiIGNvbnRlbnQ9IklFPWVkZ2UiPgogICAgPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCwgaW5pdGlhbC1zY2FsZT0xIj4KICAgIDxtZXRhIG5hbWU9ImRlZmF1bHRMYW5ndWFnZSIgY29udGVudD0iZW4iPgogICAgPG1ldGEgbmFtZT0iYXZhaWxhYmxlTGFuZ3VhZ2VzIgogICAgICAgICAgY29udGVudD0iZW4sIGVzLCBmciwgamEsIHB0X0JSLCB1aywgZWwsIGRlLCB6aF9IYW5zLCB6aF9IYW50LCBydSwgaGUsIGVvLCBrbyI+CiAgICA8dGl0bGU+UHlQSSDCtyBUaGUgUHl0aG9uIFBhY2thZ2UgSW5kZXg8L3RpdGxlPgogICAgPG1ldGEgbmFtZT0iZGVzY3JpcHRpb24iCiAgICAgICAgICBjb250ZW50PSJUaGUgUHl0aG9uIFBhY2thZ2UgSW5kZXggKFB5UEkpIGlzIGEgcmVwb3NpdG9yeSBvZiBzb2Z0d2FyZSBmb3IgdGhlIFB5dGhvbiBwcm9ncmFtbWluZyBsYW5ndWFnZS4iPgogICAgPGxpbmsgcmVsPSJzdHlsZXNoZWV0IgogICAgICAgICAgaHJlZj0iL3N0YXRpYy9jc3Mvd2FyZWhvdXNlLWx0ci45OWM4OTUzNC5jc3MiPgogICAgPGxpbmsgcmVsPSJzdHlsZXNoZWV0IgogICAgICAgICAgaHJlZj0iL3N0YXRpYy9jc3MvZm9udGF3ZXNvbWUuOTQxNzYyNTMuY3NzIj4KICAgIDxsaW5rIHJlbD0ic3R5bGVzaGVldCIKICAgICAgICAgIGhyZWY9Ii9zdGF0aWMvY3NzL2ZvbnRzLjNiNWQxYTFjLmNzcyI+CiAgICA8bm9zY3JpcHQ+CiAgICAgIDxsaW5rIHJlbD0ic3R5bGVzaGVldCIKICAgICAgICAgICAgaHJlZj0iL3N0YXRpYy9jc3Mvbm9zY3JpcHQuMDY3M2M5ZWEuY3NzIj4KICAgIDwvbm9zY3JpcHQ+CiAgICA8bGluayByZWw9Imljb24iCiAgICAgICAgICBocmVmPSIvc3RhdGljL2ltYWdlcy9mYXZpY29uLjM1NTQ5ZmU4LmljbyIKICAgICAgICAgIHR5cGU9ImltYWdlL3gtaWNvbiI+CiAgICA8bGluayByZWw9ImFsdGVybmF0ZSIKICAgICAgICAgIHR5cGU9ImFwcGxpY2F0aW9uL3Jzcyt4bWwiCiAgICAgICAgICB0aXRsZT0iUlNTOiA0MCBsYXRlc3QgdXBkYXRlcyIKICAgICAgICAgIGhyZWY9Ii9yc3MvdXBkYXRlcy54bWwiPgogICAgPGxpbmsgcmVsPSJhbHRlcm5hdGUiCiAgICAgICAgICB0eXBlPSJhcHBsaWNhdGlvbi9yc3MreG1sIgogICAgICAgICAgdGl0bGU9IlJTUzogNDAgbmV3ZXN0IHBhY2thZ2VzIgogICAgICAgICAgaHJlZj0iL3Jzcy9wYWNrYWdlcy54bWwiPgogICAgICA8bGluayByZWw9ImNhbm9uaWNhbCIgaHJlZj0iaHR0cHM6Ly9weXBpLm9yZy8iPgogICAgPG1ldGEgcHJvcGVydHk9Im9nOnVybCIKICAgICAgICAgIGNvbnRlbnQ9Imh0dHBzOi8vcHlwaS5vcmcvIj4KICAgIDxtZXRhIHByb3BlcnR5PSJvZzpzaXRlX25hbWUiIGNvbnRlbnQ9IlB5UEkiPgogICAgPG1ldGEgcHJvcGVydHk9Im9nOnR5cGUiIGNvbnRlbnQ9IndlYnNpdGUiPgogICAgPG1ldGEgcHJvcGVydHk9Im9nOmltYWdlIgogICAgICAgICAgY29udGVudD0iaHR0cHM6Ly9weXBpLm9yZy9zdGF0aWMvaW1hZ2VzL3R3aXR0ZXIuYWJhZjRiMTkud2VicCI+CiAgICA8bWV0YSBwcm9wZXJ0eT0ib2c6dGl0bGUiCiAgICAgICAgICBjb250ZW50PSIiPgogICAgPG1ldGEgcHJvcGVydHk9Im9nOmRlc2NyaXB0aW9uIiBjb250ZW50PSJUaGUgUHl0aG9uIFBhY2thZ2UgSW5kZXggKFB5UEkpIGlzIGEgcmVwb3NpdG9yeSBvZiBzb2Z0d2FyZSBmb3IgdGhlIFB5dGhvbiBwcm9ncmFtbWluZyBsYW5ndWFnZS4iPgo8bWV0YSBuYW1lPSJzb3VyY2UtY29tbWl0IiBjb250ZW50PSIyZDAzMGQxMTc2MjcxZDdhZGFiY2RkZTVkODdlMTg0ZDNkM2Y4NDdmIj4gICAgPGxpbmsgcmVsPSJzZWFyY2giCiAgICAgICAgICB0eXBlPSJhcHBsaWNhdGlvbi9vcGVuc2VhcmNoZGVzY3JpcHRpb24reG1sIgogICAgICAgICAgdGl0bGU9IlB5UEkiCiAgICAgICAgICBocmVmPSIvb3BlbnNlYXJjaC54bWwiPgogICAgPHNjcmlwdCBkZWZlciBzcmM9Ii9zdGF0aWMvanMvd2FyZWhvdXNlLmU2MWYyNzM1LmpzIj4KICAgIDwvc2NyaXB0PgogICAgICA8c2NyaXB0IHNyYz0iL3N0YXRpYy9qcy91dGlscy9wbGF1c2libGUtaW5pdC5mNjBkZTc0Zi5qcyI+PC9zY3JpcHQ+CiAgICAgIDxzY3JpcHQgYXN5bmMKICAgICAgICAgICAgICBzcmM9Imh0dHBzOi8vYW5hbHl0aWNzLnB5dGhvbi5vcmcvanMvcGEtWi1RWUd2T0tId2ZLV2FrMHhsalhuLmpzIj48L3NjcmlwdD4KICAgIDxzY3JpcHQgYXN5bmMKICAgICAgICAgICAgc3JjPSJodHRwczovL21lZGlhLmV0aGljYWxhZHMuaW8vbWVkaWEvY2xpZW50L3YxLjQuMC9ldGhpY2FsYWRzLm1pbi5qcyIKICAgICAgICAgICAgaW50ZWdyaXR5PSJzaGEyNTYtVTNoS0RpZHVkSWF4QkRFendHSkFwSmdQRWYybVdrNmNmTVdnaHJBYTZpMD0gc2hhMzg0LVVjbXNDcWNOUlNMVy9kVjNMbzFvQ2kyL1ZhdXJYYmliNnA0SHlVRU9lSWEvNE9wc3JudWNydWdBZWZ6VlpKZkkgc2hhNTEyLXE0dDFMNHhFakdWMlI0aHpxQ2E0MVA4anJnRlVTOHhUYjhyZE52NEZHdnc3RnB5ZFZqL2treEJKSE9pYW94SGE4b2xDY3gxU2xrOUsrM3NOYnNNNHVnPT0iCiAgICAgICAgICAgIGNyb3Nzb3JpZ2luPSJhbm9ueW1vdXMiPjwvc2NyaXB0PgogIDwvaGVhZD4KICA8Ym9keSBkYXRhLWNvbnRyb2xsZXI9InZpZXdwb3J0LXRvZ2dsZSI+CiAgICAgIDwhLS0gQWNjZXNzaWJpbGl0eTogdGhpcyBsaW5rIHNob3VsZCBhbHdheXMgYmUgdGhlIGZpcnN0IHBpZWNlIG9mIGNvbnRlbnQgaW5zaWRlIHRoZSBib2R5LS0+CiAgICAgIDxhIGhyZWY9IiNjb250ZW50IiBjbGFzcz0ic2tpcC10by1jb250ZW50Ij5Ta2lwIHRvIG1haW4gY29udGVudDwvYT4KICAgICAgPGJ1dHRvbiB0eXBlPSJidXR0b24iCiAgICAgICAgICAgICAgY2xhc3M9ImJ1dHRvbiBidXR0b24tLXByaW1hcnkgYnV0dG9uLS1zd2l0Y2gtdG8tbW9iaWxlIGhpZGRlbiIKICAgICAgICAgICAgICBkYXRhLXZpZXdwb3J0LXRvZ2dsZS10YXJnZXQ9InN3aXRjaFRvTW9iaWxlIgogICAgICAgICAgICAgIGRhdGEtYWN0aW9uPSJ2aWV3cG9ydC10b2dnbGUjc3dpdGNoVG9Nb2JpbGUiPlN3aXRjaCB0byBtb2JpbGUgdmVyc2lvbjwvYnV0dG9uPgogICAgICA8ZGl2IGlkPSJzdGlja3ktbm90aWZpY2F0aW9ucyIgY2xhc3M9InN0aWNrLXRvLXRvcCBqcy1zdGljay10by10b3AiPgogICAgICAgIDwhLS0gQWRkIGJyb3dzZXIgd2FybmluZy4gV2lsbCBzaG93IGZvciBpZTkgYW5kIGJlbG93IC0tPgogICAgICAgIDwhLS1baWYgSUVdPgogICAgICA8ZGl2IGNsYXNzPSJub3RpZmljYXRpb24tYmFyIG5vdGlmaWNhdGlvbi1iYXItLXdhcm5pbmciIHJvbGU9InN0YXR1cyI+CiAgICAgICAgPHNwYW4gY2xhc3M9Im5vdGlmaWNhdGlvbi1iYXJfX2ljb24iPgogICAgICAgICAgPGkgY2xhc3M9ImZhIGZhLWV4Y2xhbWF0aW9uLXRyaWFuZ2xlIiBhcmlhLWhpZGRlbj0idHJ1ZSI+PC9pPgogICAgICAgICAgPHNwYW4gY2xhc3M9InNyLW9ubHkiPldhcm5pbmc8L3NwYW4+CiAgICAgICAgPC9zcGFuPgogICAgICAgIDxzcGFuIGNsYXNzPSJub3RpZmljYXRpb24tYmFyX19tZXNzYWdlIj5Zb3UgYXJlIHVzaW5nIGFuIHVuc3VwcG9ydGVkIGJyb3dzZXIsIHVwZ3JhZGUgdG8gYSBuZXdlciB2ZXJzaW9uLjwvc3Bhbj4KICAgICAgPC9kaXY+CiAgICAgIDwhW2VuZGlmXS0tPgogICAgICAgIDxub3NjcmlwdD4KICAgICAgICAgIDxkaXYgY2xhc3M9Im5vdGlmaWNhdGlvbi1iYXIgbm90aWZpY2F0aW9uLWJhci0td2FybmluZyIgcm9sZT0ic3RhdHVzIj4KICAgICAgICAgICAgPHNwYW4gY2xhc3M9Im5vdGlmaWNhdGlvbi1iYXJfX2ljb24iPgogICAgICAgICAgICAgIDxpIGNsYXNzPSJmYSBmYS1leGNsYW1hdGlvbi10cmlhbmdsZSIgYXJpYS1oaWRkZW49InRydWUiPjwvaT4KICAgICAgICAgICAgICA8c3BhbiBjbGFzcz0ic3Itb25seSI+V2FybmluZzwvc3Bhbj4KICAgICAgICAgICAgPC9zcGFuPgogICAgICAgICAgICA8c3BhbiBjbGFzcz0ibm90aWZpY2F0aW9uLWJhcl9fbWVzc2FnZSI+U29tZSBmZWF0dXJlcyBtYXkgbm90IHdvcmsgd2l0aG91dCBKYXZhU2NyaXB0LiBQbGVhc2UgdHJ5IGVuYWJsaW5nIGl0IGlmIHlvdSBlbmNvdW50ZXIgcHJvYmxlbXMuPC9zcGFuPgogICAgICAgICAgPC9kaXY+CiAgICAgICAgPC9ub3NjcmlwdD4KPGRpdiBkYXRhLWh0bWwtaW5jbHVkZT0iL19pbmNsdWRlcy91bmF1dGhlZC9ub3RpZmljYXRpb24tYmFubmVycy8iPjwvZGl2PiAgICA8L2Rpdj4KPGRpdiBkYXRhLWh0bWwtaW5jbHVkZT0iL19pbmNsdWRlcy91bmF1dGhlZC9mbGFzaC1tZXNzYWdlcy8iPjwvZGl2PjxkaXYgZGF0YS1odG1sLWluY2x1ZGU9Ii9faW5jbHVkZXMvYXV0aGVkL3Nlc3Npb24tbm90aWZpY2F0aW9ucy8iPjwvZGl2PjxoZWFkZXIgY2xhc3M9InNpdGUtaGVhZGVyICI+CiAgPGRpdiBjbGFzcz0ic2l0ZS1jb250YWluZXIiPgogICAgPGRpdiBjbGFzcz0ic3BsaXQtbGF5b3V0Ij4KICA8ZGl2PgogICAgPGEgY2xhc3M9InNpdGUtaGVhZGVyX19sb2dvIiBocmVmPSIvIj4KICAgICAgPGltZyBhbHQ9IlB5UEkiCiAgICAgICAgICAgc3JjPSIvc3RhdGljL2ltYWdlcy9sb2dvLXNtYWxsLjBlMDg1NWQwLnN2ZyI+CiAgICA8L2E+CiAgPC9kaXY+CjxkaXYgZGF0YS1odG1sLWluY2x1ZGU9Ii9faW5jbHVkZXMvYXV0aGVkL2N1cnJlbnQtdXNlci1pbmRpY2F0b3IvIj4gICAgICAgIDxkaXYgaWQ9InVzZXItaW5kaWNhdG9yIgogICAgICAgY2xhc3M9Imhvcml6b250YWwtbWVudSBob3Jpem9udGFsLW1lbnUtLWxpZ2h0IGhvcml6b250YWwtbWVudS0tdGFsbCI+CiAgICA8bmF2IGNsYXNzPSJob3Jpem9udGFsLW1lbnUgaG9yaXpvbnRhbC1tZW51LS1saWdodCBob3Jpem9udGFsLW1lbnUtLXRhbGwgaGlkZS1vbi10YWJsZXQiCiAgICAgICAgIGFyaWEtbGFiZWw9Ik1haW4gbmF2aWdhdGlvbiI+CiAgICAgIDx1bD4KICAgICAgICA8bGkgY2xhc3M9Imhvcml6b250YWwtbWVudV9faXRlbSI+CiAgICAgICAgICA8YSBocmVmPSIvaGVscC8iIGNsYXNzPSJob3Jpem9udGFsLW1lbnVfX2xpbmsiPkhlbHA8L2E+CiAgICAgICAgPC9saT4KICAgICAgICA8bGkgY2xhc3M9Imhvcml6b250YWwtbWVudV9faXRlbSI+CiAgICAgICAgICA8YSBocmVmPSJodHRwczovL2RvY3MucHlwaS5vcmcvIiBjbGFzcz0iaG9yaXpvbnRhbC1tZW51X19saW5rIj5Eb2NzPC9hPgogICAgICAgIDwvbGk+CiAgICAgICAgPGxpIGNsYXNzPSJob3Jpem9udGFsLW1lbnVfX2l0ZW0iPgogICAgICAgICAgPGEgaHJlZj0iL3Nwb25zb3JzLyIKICAgICAgICAgICAgIGNsYXNzPSJob3Jpem9udGFsLW1lbnVfX2xpbmsiPlNwb25zb3JzPC9hPgogICAgICAgIDwvbGk+CiAgICAgICAgPGxpIGNsYXNzPSJob3Jpem9udGFsLW1lbnVfX2l0ZW0iPgogICAgICAgICAgPGEgaHJlZj0iL2FjY291bnQvbG9naW4vP25leHQ9aHR0cHMlM0ElMkYlMkZweXBpLm9yZyUyRiIgY2xhc3M9Imhvcml6b250YWwtbWVudV9fbGluayI+TG9nIGluPC9hPgogICAgICAgIDwvbGk+CiAgICAgICAgPGxpIGNsYXNzPSJob3Jpem9udGFsLW1lbnVfX2l0ZW0iPgogICAgICAgICAgPGEgaHJlZj0iL2FjY291bnQvcmVnaXN0ZXIvIgogICAgICAgICAgICAgY2xhc3M9Imhvcml6b250YWwtbWVudV9fbGluayI+UmVnaXN0ZXI8L2E+CiAgICAgICAgPC9saT4KICAgICAgPC91bD4KICAgIDwvbmF2PgogICAgPG5hdiBjbGFzcz0iZHJvcGRvd24gZHJvcGRvd24tLW9uLW1lbnUgaGlkZGVuIHNob3ctb24tdGFibGV0IgogICAgICAgICBhcmlhLWxhYmVsPSJNYWluIG5hdmlnYXRpb24iPgogICAgICA8YnV0dG9uIHR5cGU9ImJ1dHRvbiIKICAgICAgICAgICAgICBjbGFzcz0iaG9yaXpvbnRhbC1tZW51X19saW5rIGRyb3Bkb3duX190cmlnZ2VyIgogICAgICAgICAgICAgIGFyaWEtaGFzcG9wdXA9InRydWUiCiAgICAgICAgICAgICAgYXJpYS1leHBhbmRlZD0iZmFsc2UiCiAgICAgICAgICAgICAgYXJpYS1sYWJlbD0iVmlldyBtZW51Ij4KTWVudSAgICAgICAgPHNwYW4gY2xhc3M9ImRyb3Bkb3duX190cmlnZ2VyLWNhcmV0Ij4KICAgICAgICAgIDxpIGNsYXNzPSJmYSBmYS1jYXJldC1kb3duIiBhcmlhLWhpZGRlbj0idHJ1ZSI+PC9pPgogICAgICAgIDwvc3Bhbj4KICAgICAgPC9idXR0b24+CiAgICAgIDx1bCBjbGFzcz0iZHJvcGRvd25fX2NvbnRlbnQiCiAgICAgICAgICBhcmlhLWhpZGRlbj0idHJ1ZSIKICAgICAgICAgIGFyaWEtbGFiZWw9Ik1haW4gbWVudSI+CiAgICAgICAgPGxpPgogICAgICAgICAgPGEgY2xhc3M9ImRyb3Bkb3duX19saW5rIiBocmVmPSIvaGVscC8iPkhlbHA8L2E+CiAgICAgICAgPC9saT4KICAgICAgICA8bGk+CiAgICAgICAgICA8YSBjbGFzcz0iZHJvcGRvd25fX2xpbmsiIGhyZWY9Imh0dHBzOi8vZG9jcy5weXBpLm9yZy8iPkRvY3M8L2E+CiAgICAgICAgPC9saT4KICAgICAgICA8bGk+CiAgICAgICAgICA8YSBjbGFzcz0iZHJvcGRvd25fX2xpbmsiIGhyZWY9Ii9zcG9uc29ycy8iPlNwb25zb3JzPC9hPgogICAgICAgIDwvbGk+CiAgICAgICAgPGxpPgogICAgICAgICAgPGEgY2xhc3M9ImRyb3Bkb3duX19saW5rIiBocmVmPSIvYWNjb3VudC9sb2dpbi8/bmV4dD1odHRwcyUzQSUyRiUyRnB5cGkub3JnJTJGIj5Mb2cgaW48L2E+CiAgICAgICAgPC9saT4KICAgICAgICA8bGk+CiAgICAgICAgICA8YSBjbGFzcz0iZHJvcGRvd25fX2xpbmsiCiAgICAgICAgICAgICBocmVmPSIvYWNjb3VudC9yZWdpc3Rlci8iPlJlZ2lzdGVyPC9hPgogICAgICAgIDwvbGk+CiAgICAgIDwvdWw+CiAgICA8L25hdj4KICA8L2Rpdj4KPC9kaXY+ICA8L2Rpdj4KPC9kaXY+CjwvaGVhZGVyPgo8bWFpbiBpZD0iY29udGVudCI+CiAgPGRpdiBjbGFzcz0iYmFubmVyIj4KICAgIDxkaXYgY2xhc3M9ImhvbWVwYWdlLWJhbm5lciI+CiAgICAgIDxoMSBjbGFzcz0iaG9tZXBhZ2UtYmFubmVyX190aXRsZSI+RmluZCwgaW5zdGFsbCBhbmQgcHVibGlzaCBQeXRob24gcGFja2FnZXMgd2l0aCB0aGUgUHl0aG9uIFBhY2thZ2UgSW5kZXg8L2gxPgogICAgICA8Zm9ybSBjbGFzcz0ic2VhcmNoLWZvcm0gc2VhcmNoLWZvcm0tLWxhcmdlIHNlYXJjaC1mb3JtLS1mdWxsd2lkdGgiCiAgICAgICAgICAgIGFjdGlvbj0iL3NlYXJjaC8iCiAgICAgICAgICAgIHJvbGU9InNlYXJjaCI+CiAgICAgICAgPGxhYmVsIGZvcj0ic2VhcmNoIiBjbGFzcz0ic3Itb25seSI+U2VhcmNoIFB5UEk8L2xhYmVsPgogICAgICAgIDwhLS0gVGhlIGZvbGxvd2luZyBpbnB1dCBpcyBpbnRlbnRpb25hbGx5IG5vdCBhdXRvZm9jdXNlZCwgc2VlIGh0dHBzOi8vZ2l0aHViLmNvbS9weXBpL3dhcmVob3VzZS9pc3N1ZXMvNjA4OCBmb3IgbW9yZSBkZXRhaWxzIC0tPgogICAgICAgIDxpbnB1dCBpZD0ic2VhcmNoIgogICAgICAgICAgICAgICBjbGFzcz0ic2VhcmNoLWZvcm1fX3NlYXJjaCBsYXJnZS1pbnB1dCIKICAgICAgICAgICAgICAgdHlwZT0idGV4dCIKICAgICAgICAgICAgICAgbmFtZT0icSIKICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9IlR5cGUgJy8nIHRvIHNlYXJjaCBwcm9qZWN0cyIKICAgICAgICAgICAgICAgYXV0b2NvbXBsZXRlPSJvZmYiCiAgICAgICAgICAgICAgIGF1dG9jYXBpdGFsaXplPSJvZmYiCiAgICAgICAgICAgICAgIHNwZWxsY2hlY2s9ImZhbHNlIgogICAgICAgICAgICAgICBkYXRhLWNvbnRyb2xsZXI9InNlYXJjaC1mb2N1cyIKICAgICAgICAgICAgICAgZGF0YS1hY3Rpb249ImtleWRvd25Ad2luZG93LT5zZWFyY2gtZm9jdXMjZm9jdXNTZWFyY2hGaWVsZCIKICAgICAgICAgICAgICAgZGF0YS1zZWFyY2gtZm9jdXMtdGFyZ2V0PSJzZWFyY2hGaWVsZCI+CiAgICAgICAgPGJ1dHRvbiB0eXBlPSJzdWJtaXQiIGNsYXNzPSJzZWFyY2gtZm9ybV9fYnV0dG9uIj4KICAgICAgICAgIDxpIGNsYXNzPSJmYSBmYS1zZWFyY2giIGFyaWEtaGlkZGVuPSJ0cnVlIj48L2k+CiAgICAgICAgICA8c3BhbiBjbGFzcz0ic3Itb25seSI+U2VhcmNoPC9zcGFuPgogICAgICAgIDwvYnV0dG9uPgogICAgICA8L2Zvcm0+CiAgICAgIDxwIGNsYXNzPSJob21lcGFnZS1iYW5uZXJfX2Jyb3dzZSI+Ck9yIDxhIGhyZWY9Ii9zZWFyY2gvIj5icm93c2UgcHJvamVjdHM8L2E+ICAgICAgPC9wPgogICAgPC9kaXY+CiAgPC9kaXY+CiAgPGRpdiBjbGFzcz0iaG9yaXpvbnRhbC1zZWN0aW9uIGhvcml6b250YWwtc2VjdGlvbi0tZ3JleSBob3Jpem9udGFsLXNlY3Rpb24tLXRoaW4gaG9yaXpvbnRhbC1zZWN0aW9uLS1zdGF0aXN0aWNzIj4KICAgIDxkaXYgY2xhc3M9InN0YXRpc3RpY3MtYmFyIj4KICAgICAgPHAgY2xhc3M9InN0YXRpc3RpY3MtYmFyX19zdGF0aXN0aWMiPgo4NjIsNTQzIHByb2plY3RzICAgIDwvcD4KICAgIDxwIGNsYXNzPSJzdGF0aXN0aWNzLWJhcl9fc3RhdGlzdGljIj4KOSwyNTYsNjEwIHJlbGVhc2VzICA8L3A+CiAgPHAgY2xhc3M9InN0YXRpc3RpY3MtYmFyX19zdGF0aXN0aWMiPgoyMCwzNTcsNjMxIGZpbGVzPC9wPgo8cCBjbGFzcz0ic3RhdGlzdGljcy1iYXJfX3N0YXRpc3RpYyI+CjEsMDkzLDM0OSB1c2VyczwvcD4KPC9kaXY+CjwvZGl2Pgo8ZGl2IGNsYXNzPSJob3Jpem9udGFsLXNlY3Rpb24iPgogIDxkaXYgY2xhc3M9ImFib3V0LXB5cGkiPgogICAgPGRpdiBjbGFzcz0iYWJvdXQtcHlwaV9fbG9nbyI+CiAgICAgIDxpbWcgYWx0PSIiCiAgICAgICAgICAgc3JjPSIvc3RhdGljL2ltYWdlcy9sb2dvLWxhcmdlLjUxNmU3NzZkLnN2ZyIKICAgICAgICAgICBsb2FkaW5nPSJsYXp5Ij4KICAgIDwvZGl2PgogICAgPGRpdiBjbGFzcz0iYWJvdXQtcHlwaV9fdGV4dCI+CiAgICAgIDxwIGNsYXNzPSJsZWRlLXBhcmFncmFwaCI+ClRoZSBQeXRob24gUGFja2FnZSBJbmRleCAoUHlQSSkgaXMgYSByZXBvc2l0b3J5IG9mIHNvZnR3YXJlIGZvciB0aGUgUHl0aG9uIHByb2dyYW1taW5nIGxhbmd1YWdlLiAgICAgIDwvcD4KICAgICAgPHA+ClB5UEkgaGVscHMgeW91IGZpbmQgYW5kIGluc3RhbGwgc29mdHdhcmUgZGV2ZWxvcGVkIGFuZCBzaGFyZWQgYnkgdGhlIFB5dGhvbiBjb21tdW5pdHkuICAgICAgICA8YSBocmVmPSJodHRwczovL3BhY2thZ2luZy5weXRob24ub3JnL3R1dG9yaWFscy9pbnN0YWxsaW5nLXBhY2thZ2VzLyIKICAgICAgICAgICB0aXRsZT0iRXh0ZXJuYWwgbGluayIKICAgICAgICAgICB0YXJnZXQ9Il9ibGFuayIKICAgICAgICAgICByZWw9Im5vb3BlbmVyIj5MZWFybiBhYm91dCBpbnN0YWxsaW5nIHBhY2thZ2VzPC9hPi4KICAgICAgPC9wPgogICAgICA8cD4KUGFja2FnZSBhdXRob3JzIHVzZSBQeVBJIHRvIGRpc3RyaWJ1dGUgdGhlaXIgc29mdHdhcmUuICAgICAgICA8YSBocmVmPSJodHRwczovL3BhY2thZ2luZy5weXRob24ub3JnL3R1dG9yaWFscy9wYWNrYWdpbmctcHJvamVjdHMvIgogICAgICAgICAgIHRpdGxlPSJFeHRlcm5hbCBsaW5rIgogICAgICAgICAgIHRhcmdldD0iX2JsYW5rIgogICAgICAgICAgIHJlbD0ibm9vcGVuZXIiPkxlYXJuIGhvdyB0byBwYWNrYWdlIHlvdXIgUHl0aG9uIGNvZGUgZm9yIFB5UEk8L2E+LgogICAgICA8L3A+CiAgICA8L2Rpdj4KICA8L2Rpdj4KPC9kaXY+CjwvbWFpbj4KPGZvb3RlciBjbGFzcz0iZm9vdGVyIj4KICA8ZGl2IGNsYXNzPSJmb290ZXJfX2xvZ28iPgogICAgPGltZyBzcmM9Ii9zdGF0aWMvaW1hZ2VzL3doaXRlLWN1YmUuMjM1MWE4NmMuc3ZnIgogICAgICAgICBhbHQ9IiIKICAgICAgICAgY2xhc3M9Ii1qcy13aGl0ZS1jdWJlIj4KICA8L2Rpdj4KICA8ZGl2IGNsYXNzPSJmb290ZXJfX21lbnVzIj4KICAgIDxkaXYgY2xhc3M9ImZvb3Rlcl9fbWVudSI+CiAgICAgIDxoMj5IZWxwPC9oMj4KICAgICAgPG5hdiBhcmlhLWxhYmVsPSJIZWxwIG5hdmlnYXRpb24iPgogICAgICAgIDx1bD4KICAgICAgICAgIDxsaT4KICAgICAgICAgICAgPGEgaHJlZj0iaHR0cHM6Ly9wYWNrYWdpbmcucHl0aG9uLm9yZy90dXRvcmlhbHMvaW5zdGFsbGluZy1wYWNrYWdlcy8iCiAgICAgICAgICAgICAgIHRpdGxlPSJFeHRlcm5hbCBsaW5rIgogICAgICAgICAgICAgICB0YXJnZXQ9Il9ibGFuayIKICAgICAgICAgICAgICAgcmVsPSJub29wZW5lciI+SW5zdGFsbGluZyBwYWNrYWdlczwvYT4KICAgICAgICAgIDwvbGk+CiAgICAgICAgICA8bGk+CiAgICAgICAgICAgIDxhIGhyZWY9Imh0dHBzOi8vcGFja2FnaW5nLnB5dGhvbi5vcmcvdHV0b3JpYWxzL3BhY2thZ2luZy1wcm9qZWN0cy8iCiAgICAgICAgICAgICAgIHRpdGxlPSJFeHRlcm5hbCBsaW5rIgogICAgICAgICAgICAgICB0YXJnZXQ9Il9ibGFuayIKICAgICAgICAgICAgICAgcmVsPSJub29wZW5lciI+VXBsb2FkaW5nIHBhY2thZ2VzPC9hPgogICAgICAgICAgPC9saT4KICAgICAgICAgIDxsaT4KICAgICAgICAgICAgPGEgaHJlZj0iaHR0cHM6Ly9wYWNrYWdpbmcucHl0aG9uLm9yZy8iCiAgICAgICAgICAgICAgIHRpdGxlPSJFeHRlcm5hbCBsaW5rIgogICAgICAgICAgICAgICB0YXJnZXQ9Il9ibGFuayIKICAgICAgICAgICAgICAgcmVsPSJub29wZW5lciI+VXNlciBndWlkZTwvYT4KICAgICAgICAgIDwvbGk+CiAgICAgICAgICA8bGk+CiAgICAgICAgICAgIDxhIGhyZWY9Imh0dHBzOi8vd3d3LnB5dGhvbi5vcmcvZGV2L3BlcHMvcGVwLTA1NDEvIgogICAgICAgICAgICAgICB0aXRsZT0iRXh0ZXJuYWwgbGluayIKICAgICAgICAgICAgICAgdGFyZ2V0PSJfYmxhbmsiCiAgICAgICAgICAgICAgIHJlbD0ibm9vcGVuZXIiPlByb2plY3QgbmFtZSByZXRlbnRpb248L2E+CiAgICAgICAgICA8L2xpPgogICAgICAgICAgPGxpPgogICAgICAgICAgICA8YSBocmVmPSIvaGVscC8iPkZBUXM8L2E+CiAgICAgICAgICA8L2xpPgogICAgICAgIDwvdWw+CiAgICAgIDwvbmF2PgogICAgPC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJmb290ZXJfX21lbnUiPgogICAgICA8aDI+QWJvdXQgUHlQSTwvaDI+CiAgICAgIDxuYXYgYXJpYS1sYWJlbD0iQWJvdXQgUHlQSSBuYXZpZ2F0aW9uIj4KICAgICAgICA8dWw+CiAgICAgICAgICA8bGk+CiAgICAgICAgICAgIDxhIGhyZWY9Imh0dHBzOi8vYmxvZy5weXBpLm9yZyIKICAgICAgICAgICAgICAgdGl0bGU9IkV4dGVybmFsIGxpbmsiCiAgICAgICAgICAgICAgIHRhcmdldD0iX2JsYW5rIgogICAgICAgICAgICAgICByZWw9Im5vb3BlbmVyIj5QeVBJIEJsb2c8L2E+CiAgICAgICAgICA8L2xpPgogICAgICAgICAgPGxpPgogICAgICAgICAgICA8YSBocmVmPSJodHRwczovL2R0ZGcuY28vcHlwaSIKICAgICAgICAgICAgICAgdGl0bGU9IkV4dGVybmFsIGxpbmsiCiAgICAgICAgICAgICAgIHRhcmdldD0iX2JsYW5rIgogICAgICAgICAgICAgICByZWw9Im5vb3BlbmVyIj5JbmZyYXN0cnVjdHVyZSBkYXNoYm9hcmQ8L2E+CiAgICAgICAgICA8L2xpPgogICAgICAgICAgPGxpPgogICAgICAgICAgICA8YSBocmVmPSIvc3RhdHMvIj5TdGF0aXN0aWNzPC9hPgogICAgICAgICAgPC9saT4KICAgICAgICAgIDxsaT4KICAgICAgICAgICAgPGEgaHJlZj0iL3RyYWRlbWFya3MvIj5Mb2dvcyAmIHRyYWRlbWFya3M8L2E+CiAgICAgICAgICA8L2xpPgogICAgICAgICAgPGxpPgogICAgICAgICAgICA8YSBocmVmPSIvc3BvbnNvcnMvIj5PdXIgc3BvbnNvcnM8L2E+CiAgICAgICAgICA8L2xpPgogICAgICAgIDwvdWw+CiAgICAgIDwvbmF2PgogICAgPC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJmb290ZXJfX21lbnUiPgogICAgICA8aDI+Q29udHJpYnV0aW5nIHRvIFB5UEk8L2gyPgogICAgICA8bmF2IGFyaWEtbGFiZWw9IkhvdyB0byBjb250cmlidXRlIG5hdmlnYXRpb24iPgogICAgICAgIDx1bD4KICAgICAgICAgIDxsaT4KICAgICAgICAgICAgPGEgaHJlZj0iL2hlbHAvI2ZlZWRiYWNrIj5CdWdzIGFuZCBmZWVkYmFjazwvYT4KICAgICAgICAgIDwvbGk+CiAgICAgICAgICA8bGk+CiAgICAgICAgICAgIDxhIGhyZWY9Imh0dHBzOi8vZ2l0aHViLmNvbS9weXBpL3dhcmVob3VzZSIKICAgICAgICAgICAgICAgdGl0bGU9IkV4dGVybmFsIGxpbmsiCiAgICAgICAgICAgICAgIHRhcmdldD0iX2JsYW5rIgogICAgICAgICAgICAgICByZWw9Im5vb3BlbmVyIj5Db250cmlidXRlIG9uIEdpdEh1YjwvYT4KICAgICAgICAgIDwvbGk+CiAgICAgICAgICA8bGk+CiAgICAgICAgICAgIDxhIGhyZWY9Imh0dHBzOi8vaG9zdGVkLndlYmxhdGUub3JnL3Byb2plY3RzL3B5cGEvd2FyZWhvdXNlLyIKICAgICAgICAgICAgICAgdGl0bGU9IkV4dGVybmFsIGxpbmsiCiAgICAgICAgICAgICAgIHRhcmdldD0iX2JsYW5rIgogICAgICAgICAgICAgICByZWw9Im5vb3BlbmVyIj5UcmFuc2xhdGUgUHlQSTwvYT4KICAgICAgICAgIDwvbGk+CiAgICAgICAgICA8bGk+CiAgICAgICAgICAgIDxhIGhyZWY9Ii9zcG9uc29ycy8iPlNwb25zb3IgUHlQSTwvYT4KICAgICAgICAgIDwvbGk+CiAgICAgICAgICA8bGk+CiAgICAgICAgICAgIDxhIGhyZWY9Imh0dHBzOi8vZ2l0aHViLmNvbS9weXBpL3dhcmVob3VzZS9ncmFwaHMvY29udHJpYnV0b3JzIgogICAgICAgICAgICAgICB0aXRsZT0iRXh0ZXJuYWwgbGluayIKICAgICAgICAgICAgICAgdGFyZ2V0PSJfYmxhbmsiCiAgICAgICAgICAgICAgIHJlbD0ibm9vcGVuZXIiPkRldmVsb3BtZW50IGNyZWRpdHM8L2E+CiAgICAgICAgICA8L2xpPgogICAgICAgIDwvdWw+CiAgICAgIDwvbmF2PgogICAgPC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJmb290ZXJfX21lbnUiPgogICAgICA8aDI+VXNpbmcgUHlQSTwvaDI+CiAgICAgIDxuYXYgYXJpYS1sYWJlbD0iVXNpbmcgUHlQSSBuYXZpZ2F0aW9uIj4KICAgICAgICA8dWw+CiAgICAgICAgICA8bGk+CiAgICAgICAgICAgIDxhIGhyZWY9Imh0dHBzOi8vcG9saWNpZXMucHl0aG9uLm9yZy9weXBpLm9yZy9UZXJtcy1vZi1TZXJ2aWNlLyIKICAgICAgICAgICAgICAgdGl0bGU9IkV4dGVybmFsIGxpbmsiCiAgICAgICAgICAgICAgIHRhcmdldD0iX2JsYW5rIgogICAgICAgICAgICAgICByZWw9Im5vb3BlbmVyIj5UZXJtcyBvZiBTZXJ2aWNlPC9hPgogICAgICAgICAgPC9saT4KICAgICAgICAgIDxsaT4KICAgICAgICAgICAgPGEgaHJlZj0iL3NlY3VyaXR5LyI+UmVwb3J0IHNlY3VyaXR5IGlzc3VlPC9hPgogICAgICAgICAgPC9saT4KICAgICAgICAgIDxsaT4KICAgICAgICAgICAgPGEgaHJlZj0iaHR0cHM6Ly9wb2xpY2llcy5weXRob24ub3JnL3B5dGhvbi5vcmcvY29kZS1vZi1jb25kdWN0LyIKICAgICAgICAgICAgICAgdGl0bGU9IkV4dGVybmFsIGxpbmsiCiAgICAgICAgICAgICAgIHRhcmdldD0iX2JsYW5rIgogICAgICAgICAgICAgICByZWw9Im5vb3BlbmVyIj5Db2RlIG9mIGNvbmR1Y3Q8L2E+CiAgICAgICAgICA8L2xpPgogICAgICAgICAgPGxpPgogICAgICAgICAgICA8YSBocmVmPSJodHRwczovL3BvbGljaWVzLnB5dGhvbi5vcmcvcHlwaS5vcmcvUHJpdmFjeS1Ob3RpY2UvIgogICAgICAgICAgICAgICB0aXRsZT0iRXh0ZXJuYWwgbGluayIKICAgICAgICAgICAgICAgdGFyZ2V0PSJfYmxhbmsiCiAgICAgICAgICAgICAgIHJlbD0ibm9vcGVuZXIiPlByaXZhY3kgTm90aWNlPC9hPgogICAgICAgICAgPC9saT4KICAgICAgICAgIDxsaT4KICAgICAgICAgICAgPGEgaHJlZj0iaHR0cHM6Ly9wb2xpY2llcy5weXRob24ub3JnL3B5cGkub3JnL0FjY2VwdGFibGUtVXNlLVBvbGljeS8iCiAgICAgICAgICAgICAgIHRpdGxlPSJFeHRlcm5hbCBsaW5rIgogICAgICAgICAgICAgICB0YXJnZXQ9Il9ibGFuayIKICAgICAgICAgICAgICAgcmVsPSJub29wZW5lciI+QWNjZXB0YWJsZSBVc2UgUG9saWN5PC9hPgogICAgICAgICAgPC9saT4KICAgICAgICA8L3VsPgogICAgICA8L25hdj4KICAgIDwvZGl2PgogIDwvZGl2PgogIDxociBjbGFzcz0iZm9vdGVyX19kaXZpZGVyIj4KICA8ZGl2IGNsYXNzPSJmb290ZXJfX3RleHQiPgogICAgICA8cD4KU3RhdHVzOjxhIGhyZWY9Imh0dHBzOi8vc3RhdHVzLnB5dGhvbi5vcmcvIgogICB0aXRsZT0iRXh0ZXJuYWwgbGluayIKICAgdGFyZ2V0PSJfYmxhbmsiCiAgIHJlbD0ibm9vcGVuZXIiPgogICAgICAgIDxzcGFuIGRhdGEtc3RhdHVzcGFnZS1kb21haW49Imh0dHBzOi8vMnA2Nm5tbXljc2ozLnN0YXR1c3BhZ2UuaW8iPmFsbCBzeXN0ZW1zIG9wZXJhdGlvbmFsPC9zcGFuPjwvYT4KICAgIDwvcD4KICA8cD4KRGV2ZWxvcGVkIGFuZCBtYWludGFpbmVkIGJ5IHRoZSBQeXRob24gY29tbXVuaXR5LCBmb3IgdGhlIFB5dGhvbiBjb21tdW5pdHkuICAgIDxicj4KICAgIDxhIGhyZWY9Imh0dHBzOi8vZG9uYXRlLnB5cGkub3JnIj5Eb25hdGUgdG9kYXkhPC9hPgogIDwvcD4KICA8cD4KICAgICJQeVBJIiwgIlB5dGhvbiBQYWNrYWdlIEluZGV4IiwgYW5kIHRoZSBibG9ja3MgbG9nb3MgYXJlIHJlZ2lzdGVyZWQgPGEgaHJlZj0iL3RyYWRlbWFya3MvIj50cmFkZW1hcmtzPC9hPiBvZiB0aGUgPGEgaHJlZj0iaHR0cHM6Ly93d3cucHl0aG9uLm9yZy9wc2YtbGFuZGluZyIgdGFyZ2V0PSJfYmxhbmsiIHJlbD0ibm9vcGVuZXIiPlB5dGhvbiBTb2Z0d2FyZSBGb3VuZGF0aW9uPC9hPi4KICAgIDxicj4KICA8L3A+CiAgPHA+CiAgICDCqSAyMDI2IDxhIGhyZWY9Imh0dHBzOi8vd3d3LnB5dGhvbi5vcmcvcHNmLWxhbmRpbmcvIgogICAgdGl0bGU9IkV4dGVybmFsIGxpbmsiCiAgICB0YXJnZXQ9Il9ibGFuayIKICAgIHJlbD0ibm9vcGVuZXIiPlB5dGhvbiBTb2Z0d2FyZSBGb3VuZGF0aW9uPC9hPgogICAgPGJyPgogICAgPGEgaHJlZj0iL3NpdGVtYXAvIj5TaXRlIG1hcDwvYT4KICA8L3A+CiAgICA8cD4KRGVwbG95ZWQgZnJvbSA8YSBocmVmPSJodHRwczovL2dpdGh1Yi5jb20vcHlwaS93YXJlaG91c2UvY29tbWl0LzJkMDMwZDExNzYyNzFkN2FkYWJjZGRlNWQ4N2UxODRkM2QzZjg0N2YiIHRpdGxlPSJFeHRlcm5hbCBsaW5rIiB0YXJnZXQ9Il9ibGFuayIgcmVsPSJub29wZW5lciI+PGNvZGU+MmQwMzBkMTwvY29kZT48L2E+ICAgIDwvcD4KPC9kaXY+CjxkaXYgY2xhc3M9ImNlbnRlcmVkIGhpZGUtb24tZGVza3RvcCI+CiAgPGJ1dHRvbiB0eXBlPSJidXR0b24iCiAgICAgICAgICBjbGFzcz0iYnV0dG9uIGJ1dHRvbi0tc3dpdGNoLXRvLWRlc2t0b3AgaGlkZGVuIgogICAgICAgICAgZGF0YS12aWV3cG9ydC10b2dnbGUtdGFyZ2V0PSJzd2l0Y2hUb0Rlc2t0b3AiCiAgICAgICAgICBkYXRhLWFjdGlvbj0idmlld3BvcnQtdG9nZ2xlI3N3aXRjaFRvRGVza3RvcCI+U3dpdGNoIHRvIGRlc2t0b3AgdmVyc2lvbjwvYnV0dG9uPgo8L2Rpdj4KPC9mb290ZXI+CjxkaXYgY2xhc3M9Imxhbmd1YWdlLXN3aXRjaGVyIj4KICA8Zm9ybSBhY3Rpb249Ii9sb2NhbGUvIj4KICAgIDx1bD4KICAgICAgICA8bGk+CiAgICAgICAgICA8YnV0dG9uIGNsYXNzPSJsYW5ndWFnZS1zd2l0Y2hlcl9fc2VsZWN0ZWQiICAgICAgICAgICAgICAgICAgbmFtZT0ibG9jYWxlX2lkIgogICAgICAgICAgICAgICAgICB2YWx1ZT0iZW4iCiAgICAgICAgICAgICAgICAgIHR5cGU9InN1Ym1pdCI+RW5nbGlzaDwvYnV0dG9uPgogICAgICAgIDwvbGk+CiAgICAgICAgPGxpPgogICAgICAgICAgPGJ1dHRvbiAgICAgICAgICAgICAgICAgICBuYW1lPSJsb2NhbGVfaWQiCiAgICAgICAgICAgICAgICAgIHZhbHVlPSJlcyIKICAgICAgICAgICAgICAgICAgdHlwZT0ic3VibWl0Ij5lc3Bhw7FvbDwvYnV0dG9uPgogICAgICAgIDwvbGk+CiAgICAgICAgPGxpPgogICAgICAgICAgPGJ1dHRvbiAgICAgICAgICAgICAgICAgICBuYW1lPSJsb2NhbGVfaWQiCiAgICAgICAgICAgICAgICAgIHZhbHVlPSJmciIKICAgICAgICAgICAgICAgICAgdHlwZT0ic3VibWl0Ij5mcmFuw6dhaXM8L2J1dHRvbj4KICAgICAgICA8L2xpPgogICAgICAgIDxsaT4KICAgICAgICAgIDxidXR0b24gICAgICAgICAgICAgICAgICAgbmFtZT0ibG9jYWxlX2lkIgogICAgICAgICAgICAgICAgICB2YWx1ZT0iamEiCiAgICAgICAgICAgICAgICAgIHR5cGU9InN1Ym1pdCI+5pel5pys6KqePC9idXR0b24+CiAgICAgICAgPC9saT4KICAgICAgICA8bGk+CiAgICAgICAgICA8YnV0dG9uICAgICAgICAgICAgICAgICAgIG5hbWU9ImxvY2FsZV9pZCIKICAgICAgICAgICAgICAgICAgdmFsdWU9InB0X0JSIgogICAgICAgICAgICAgICAgICB0eXBlPSJzdWJtaXQiPnBvcnR1Z3XDqnMgKEJyYXNpbCk8L2J1dHRvbj4KICAgICAgICA8L2xpPgogICAgICAgIDxsaT4KICAgICAgICAgIDxidXR0b24gICAgICAgICAgICAgICAgICAgbmFtZT0ibG9jYWxlX2lkIgogICAgICAgICAgICAgICAgICB2YWx1ZT0idWsiCiAgICAgICAgICAgICAgICAgIHR5cGU9InN1Ym1pdCI+0YPQutGA0LDRl9C90YHRjNC60LA8L2J1dHRvbj4KICAgICAgICA8L2xpPgogICAgICAgIDxsaT4KICAgICAgICAgIDxidXR0b24gICAgICAgICAgICAgICAgICAgbmFtZT0ibG9jYWxlX2lkIgogICAgICAgICAgICAgICAgICB2YWx1ZT0iZWwiCiAgICAgICAgICAgICAgICAgIHR5cGU9InN1Ym1pdCI+zpXOu867zrfOvc65zrrOrDwvYnV0dG9uPgogICAgICAgIDwvbGk+CiAgICAgICAgPGxpPgogICAgICAgICAgPGJ1dHRvbiAgICAgICAgICAgICAgICAgICBuYW1lPSJsb2NhbGVfaWQiCiAgICAgICAgICAgICAgICAgIHZhbHVlPSJkZSIKICAgICAgICAgICAgICAgICAgdHlwZT0ic3VibWl0Ij5EZXV0c2NoPC9idXR0b24+CiAgICAgICAgPC9saT4KICAgICAgICA8bGk+CiAgICAgICAgICA8YnV0dG9uICAgICAgICAgICAgICAgICAgIG5hbWU9ImxvY2FsZV9pZCIKICAgICAgICAgICAgICAgICAgdmFsdWU9InpoX0hhbnMiCiAgICAgICAgICAgICAgICAgIHR5cGU9InN1Ym1pdCI+5Lit5paHICjnroDkvZMpPC9idXR0b24+CiAgICAgICAgPC9saT4KICAgICAgICA8bGk+CiAgICAgICAgICA8YnV0dG9uICAgICAgICAgICAgICAgICAgIG5hbWU9ImxvY2FsZV9pZCIKICAgICAgICAgICAgICAgICAgdmFsdWU9InpoX0hhbnQiCiAgICAgICAgICAgICAgICAgIHR5cGU9InN1Ym1pdCI+5Lit5paHICjnuYHpq5QpPC9idXR0b24+CiAgICAgICAgPC9saT4KICAgICAgICA8bGk+CiAgICAgICAgICA8YnV0dG9uICAgICAgICAgICAgICAgICAgIG5hbWU9ImxvY2FsZV9pZCIKICAgICAgICAgICAgICAgICAgdmFsdWU9InJ1IgogICAgICAgICAgICAgICAgICB0eXBlPSJzdWJtaXQiPtGA0YPRgdGB0LrQuNC5PC9idXR0b24+CiAgICAgICAgPC9saT4KICAgICAgICA8bGk+CiAgICAgICAgICA8YnV0dG9uICAgICAgICAgICAgICAgICAgIG5hbWU9ImxvY2FsZV9pZCIKICAgICAgICAgICAgICAgICAgdmFsdWU9ImhlIgogICAgICAgICAgICAgICAgICB0eXBlPSJzdWJtaXQiPtei15HXqNeZ16o8L2J1dHRvbj4KICAgICAgICA8L2xpPgogICAgICAgIDxsaT4KICAgICAgICAgIDxidXR0b24gICAgICAgICAgICAgICAgICAgbmFtZT0ibG9jYWxlX2lkIgogICAgICAgICAgICAgICAgICB2YWx1ZT0iZW8iCiAgICAgICAgICAgICAgICAgIHR5cGU9InN1Ym1pdCI+RXNwZXJhbnRvPC9idXR0b24+CiAgICAgICAgPC9saT4KICAgICAgICA8bGk+CiAgICAgICAgICA8YnV0dG9uICAgICAgICAgICAgICAgICAgIG5hbWU9ImxvY2FsZV9pZCIKICAgICAgICAgICAgICAgICAgdmFsdWU9ImtvIgogICAgICAgICAgICAgICAgICB0eXBlPSJzdWJtaXQiPu2VnOq1reyWtDwvYnV0dG9uPgogICAgICAgIDwvbGk+CiAgICA8L3VsPgogIDwvZm9ybT4KPC9kaXY+CjxkaXYgY2xhc3M9InNwb25zb3JzIj4KICA8cCBjbGFzcz0ic3BvbnNvcnNfX3RpdGxlIj5TdXBwb3J0ZWQgYnk8L3A+CiAgPGRpdiBjbGFzcz0ic3BvbnNvcnNfX2RpdmlkZXIiPjwvZGl2PgogICAgICAgIDxhIGNsYXNzPSJzcG9uc29yc19fc3BvbnNvciIKICAgICAgICAgICB0YXJnZXQ9Il9ibGFuayIKICAgICAgICAgICByZWw9Im5vb3BlbmVyIgogICAgICAgICAgIGhyZWY9Imh0dHBzOi8vYXdzLmFtYXpvbi5jb20vIj4KICAgICAgICAgIDxpbWcgY2xhc3M9c3BvbnNvcnNfX2ltYWdlIHNyYz0iaHR0cHM6Ly9weXBpLWNhbW8uZnJlZXRscy5mYXN0bHkubmV0L2VkNzA3NGNhZGFkMWEwNmY1NmJjNTIwYWQ5YmQzZTAwZDA3MDRjNWIvNjg3NDc0NzA3MzNhMmYyZjczNzQ2ZjcyNjE2NzY1MmU2NzZmNmY2NzZjNjU2MTcwNjk3MzJlNjM2ZjZkMmY3MDc5NzA2OTJkNjE3MzczNjU3NDczMmY3MzcwNmY2ZTczNmY3MjZjNmY2NzZmNzMyZjYxNzc3MzJkNzc2ODY5NzQ2NTJkNmM2ZjY3NmYyZDc0NDM2MTU0NzMzODdhNDMyZTcwNmU2NyIgYWx0PSIiIGxvYWRpbmc9bGF6eT4KICAgICAgICAgIDxzcGFuIGNsYXNzPSJzcG9uc29yc19fbmFtZSI+QVdTPC9zcGFuPgogICAgICAgICAgPHNwYW4gY2xhc3M9InNwb25zb3JzX19zZXJ2aWNlIj4KICAgICAgICAgICAgICBDbG91ZCBjb21wdXRpbmcgYW5kIFNlY3VyaXR5IFNwb25zb3IKICAgICAgICAgIDwvc3Bhbj4KICAgICAgICA8L2E+CiAgICAgICAgPGEgY2xhc3M9InNwb25zb3JzX19zcG9uc29yIgogICAgICAgICAgIHRhcmdldD0iX2JsYW5rIgogICAgICAgICAgIHJlbD0ibm9vcGVuZXIiCiAgICAgICAgICAgaHJlZj0iaHR0cHM6Ly93d3cuZGF0YWRvZ2hxLmNvbS8iPgogICAgICAgICAgPGltZyBjbGFzcz1zcG9uc29yc19faW1hZ2Ugc3JjPSJodHRwczovL3B5cGktY2Ftby5mcmVldGxzLmZhc3RseS5uZXQvODg1NWY3YzA2M2EzYmRiNWIwY2U4ZDkxYmZjNTBjZjg1MWNjNWM1MS82ODc0NzQ3MDczM2EyZjJmNzM3NDZmNzI2MTY3NjUyZTY3NmY2ZjY3NmM2NTYxNzA2OTczMmU2MzZmNmQyZjcwNzk3MDY5MmQ2MTczNzM2NTc0NzMyZjczNzA2ZjZlNzM2ZjcyNmM2ZjY3NmY3MzJmNjQ2MTc0NjE2NDZmNjcyZDc3Njg2OTc0NjUyZDZjNmY2NzZmMmQ2NjY4NjQ0YzRlNjY2YzZmMmU3MDZlNjciIGFsdD0iIiBsb2FkaW5nPWxhenk+CiAgICAgICAgICA8c3BhbiBjbGFzcz0ic3BvbnNvcnNfX25hbWUiPkRhdGFkb2c8L3NwYW4+CiAgICAgICAgICA8c3BhbiBjbGFzcz0ic3BvbnNvcnNfX3NlcnZpY2UiPgogICAgICAgICAgICAgIE1vbml0b3JpbmcKICAgICAgICAgIDwvc3Bhbj4KICAgICAgICA8L2E+CiAgICAgICAgPGEgY2xhc3M9InNwb25zb3JzX19zcG9uc29yIgogICAgICAgICAgIHRhcmdldD0iX2JsYW5rIgogICAgICAgICAgIHJlbD0ibm9vcGVuZXIiCiAgICAgICAgICAgaHJlZj0iaHR0cHM6Ly9kZXBvdC5kZXYiPgogICAgICAgICAgPGltZyBjbGFzcz1zcG9uc29yc19faW1hZ2Ugc3JjPSJodHRwczovL3B5cGktY2Ftby5mcmVldGxzLmZhc3RseS5uZXQvNjBmNzA5ZDI0ZjNlNGQ0NjlmOWFkYzc3YzY1ZTJmNTI5MWEzZDE2NS82ODc0NzQ3MDczM2EyZjJmNzM3NDZmNzI2MTY3NjUyZTY3NmY2ZjY3NmM2NTYxNzA2OTczMmU2MzZmNmQyZjcwNzk3MDY5MmQ2MTczNzM2NTc0NzMyZjczNzA2ZjZlNzM2ZjcyNmM2ZjY3NmY3MzJmNjQ2NTcwNmY3NDJkNzc2ODY5NzQ2NTJkNmM2ZjY3NmYyZDcwMzg1MDZmNDc2ODMxMzAyZTcwNmU2NyIgYWx0PSIiIGxvYWRpbmc9bGF6eT4KICAgICAgICAgIDxzcGFuIGNsYXNzPSJzcG9uc29yc19fbmFtZSI+RGVwb3Q8L3NwYW4+CiAgICAgICAgICA8c3BhbiBjbGFzcz0ic3BvbnNvcnNfX3NlcnZpY2UiPgogICAgICAgICAgICAgIENvbnRpbnVvdXMgSW50ZWdyYXRpb24KICAgICAgICAgIDwvc3Bhbj4KICAgICAgICA8L2E+CiAgICAgICAgPGEgY2xhc3M9InNwb25zb3JzX19zcG9uc29yIgogICAgICAgICAgIHRhcmdldD0iX2JsYW5rIgogICAgICAgICAgIHJlbD0ibm9vcGVuZXIiCiAgICAgICAgICAgaHJlZj0iaHR0cHM6Ly93d3cuZmFzdGx5LmNvbS8iPgogICAgICAgICAgPGltZyBjbGFzcz1zcG9uc29yc19faW1hZ2Ugc3JjPSJodHRwczovL3B5cGktY2Ftby5mcmVldGxzLmZhc3RseS5uZXQvZGY2ZmU4ODI5Y2JmZjJkN2Y2NjhkOTg1NzFkZjFmZDAxMWYzNjE5Mi82ODc0NzQ3MDczM2EyZjJmNzM3NDZmNzI2MTY3NjUyZTY3NmY2ZjY3NmM2NTYxNzA2OTczMmU2MzZmNmQyZjcwNzk3MDY5MmQ2MTczNzM2NTc0NzMyZjczNzA2ZjZlNzM2ZjcyNmM2ZjY3NmY3MzJmNjY2MTczNzQ2Yzc5MmQ3NzY4Njk3NDY1MmQ2YzZmNjc2ZjJkNjU2ODRkMzA3NzczNWY2ZjJlNzA2ZTY3IiBhbHQ9IiIgbG9hZGluZz1sYXp5PgogICAgICAgICAgPHNwYW4gY2xhc3M9InNwb25zb3JzX19uYW1lIj5GYXN0bHk8L3NwYW4+CiAgICAgICAgICA8c3BhbiBjbGFzcz0ic3BvbnNvcnNfX3NlcnZpY2UiPgogICAgICAgICAgICAgIENETgogICAgICAgICAgPC9zcGFuPgogICAgICAgIDwvYT4KICAgICAgICA8YSBjbGFzcz0ic3BvbnNvcnNfX3Nwb25zb3IiCiAgICAgICAgICAgdGFyZ2V0PSJfYmxhbmsiCiAgICAgICAgICAgcmVsPSJub29wZW5lciIKICAgICAgICAgICBocmVmPSJodHRwczovL2NhcmVlcnMuZ29vZ2xlLmNvbS8iPgogICAgICAgICAgPGltZyBjbGFzcz1zcG9uc29yc19faW1hZ2Ugc3JjPSJodHRwczovL3B5cGktY2Ftby5mcmVldGxzLmZhc3RseS5uZXQvNDIwY2M4Y2YzNjBiYWM4NzllMjRjOTIzYjJmNTBiYTdkMTMxNGZiMC82ODc0NzQ3MDczM2EyZjJmNzM3NDZmNzI2MTY3NjUyZTY3NmY2ZjY3NmM2NTYxNzA2OTczMmU2MzZmNmQyZjcwNzk3MDY5MmQ2MTczNzM2NTc0NzMyZjczNzA2ZjZlNzM2ZjcyNmM2ZjY3NmY3MzJmNjc2ZjZmNjc2YzY1MmQ3NzY4Njk3NDY1MmQ2YzZmNjc2ZjJkNjE2NzM0NDI0ZTM3NzQzMzJlNzA2ZTY3IiBhbHQ9IiIgbG9hZGluZz1sYXp5PgogICAgICAgICAgPHNwYW4gY2xhc3M9InNwb25zb3JzX19uYW1lIj5Hb29nbGU8L3NwYW4+CiAgICAgICAgICA8c3BhbiBjbGFzcz0ic3BvbnNvcnNfX3NlcnZpY2UiPgogICAgICAgICAgICAgIERvd25sb2FkIEFuYWx5dGljcwogICAgICAgICAgPC9zcGFuPgogICAgICAgIDwvYT4KICAgICAgICA8YSBjbGFzcz0ic3BvbnNvcnNfX3Nwb25zb3IiCiAgICAgICAgICAgdGFyZ2V0PSJfYmxhbmsiCiAgICAgICAgICAgcmVsPSJub29wZW5lciIKICAgICAgICAgICBocmVmPSJodHRwczovL3d3dy5waW5nZG9tLmNvbS8iPgogICAgICAgICAgPGltZyBjbGFzcz1zcG9uc29yc19faW1hZ2Ugc3JjPSJodHRwczovL3B5cGktY2Ftby5mcmVldGxzLmZhc3RseS5uZXQvZDAxMDUzYzAyZjNhNjI2YjczZmZjYjA2Yjk2MzY3ZmRiYmY5ZTIzMC82ODc0NzQ3MDczM2EyZjJmNzM3NDZmNzI2MTY3NjUyZTY3NmY2ZjY3NmM2NTYxNzA2OTczMmU2MzZmNmQyZjcwNzk3MDY5MmQ2MTczNzM2NTc0NzMyZjczNzA2ZjZlNzM2ZjcyNmM2ZjY3NmY3MzJmNzA2OTZlNjc2NDZmNmQyZDc3Njg2OTc0NjUyZDZjNmY2NzZmMmQ2NzM1NTgzMTU0NzU0NjM2MmU3MDZlNjciIGFsdD0iIiBsb2FkaW5nPWxhenk+CiAgICAgICAgICA8c3BhbiBjbGFzcz0ic3BvbnNvcnNfX25hbWUiPlBpbmdkb208L3NwYW4+CiAgICAgICAgICA8c3BhbiBjbGFzcz0ic3BvbnNvcnNfX3NlcnZpY2UiPgogICAgICAgICAgICAgIE1vbml0b3JpbmcKICAgICAgICAgIDwvc3Bhbj4KICAgICAgICA8L2E+CiAgICAgICAgPGEgY2xhc3M9InNwb25zb3JzX19zcG9uc29yIgogICAgICAgICAgIHRhcmdldD0iX2JsYW5rIgogICAgICAgICAgIHJlbD0ibm9vcGVuZXIiCiAgICAgICAgICAgaHJlZj0iaHR0cHM6Ly9zZW50cnkuaW8vZm9yL3B5dGhvbi8/dXRtX3NvdXJjZT1weXBpJmFtcDt1dG1fbWVkaXVtPXBhaWQtY29tbXVuaXR5JmFtcDt1dG1fY2FtcGFpZ249cHl0aG9uLW5hLWV2ZXJncmVlbiZhbXA7dXRtX2NvbnRlbnQ9c3RhdGljLWFkLXB5cGktc3BvbnNvci1sZWFybm1vcmUiPgogICAgICAgICAgPGltZyBjbGFzcz1zcG9uc29yc19faW1hZ2Ugc3JjPSJodHRwczovL3B5cGktY2Ftby5mcmVldGxzLmZhc3RseS5uZXQvNjdhZjcxMTcwMzVlMjM0NWJhY2I1YTgyZTlhYThiNWIzZTcwNzAxZC82ODc0NzQ3MDczM2EyZjJmNzM3NDZmNzI2MTY3NjUyZTY3NmY2ZjY3NmM2NTYxNzA2OTczMmU2MzZmNmQyZjcwNzk3MDY5MmQ2MTczNzM2NTc0NzMyZjczNzA2ZjZlNzM2ZjcyNmM2ZjY3NmY3MzJmNzM2NTZlNzQ3Mjc5MmQ3NzY4Njk3NDY1MmQ2YzZmNjc2ZjJkNGEyZDZiNjQ3NDJkNzA2ZTJlNzA2ZTY3IiBhbHQ9IiIgbG9hZGluZz1sYXp5PgogICAgICAgICAgPHNwYW4gY2xhc3M9InNwb25zb3JzX19uYW1lIj5TZW50cnk8L3NwYW4+CiAgICAgICAgICA8c3BhbiBjbGFzcz0ic3BvbnNvcnNfX3NlcnZpY2UiPgogICAgICAgICAgICAgIEVycm9yIGxvZ2dpbmcKICAgICAgICAgIDwvc3Bhbj4KICAgICAgICA8L2E+CiAgICAgICAgPGEgY2xhc3M9InNwb25zb3JzX19zcG9uc29yIgogICAgICAgICAgIHRhcmdldD0iX2JsYW5rIgogICAgICAgICAgIHJlbD0ibm9vcGVuZXIiCiAgICAgICAgICAgaHJlZj0iaHR0cHM6Ly9zdGF0dXNwYWdlLmlvIj4KICAgICAgICAgIDxpbWcgY2xhc3M9c3BvbnNvcnNfX2ltYWdlIHNyYz0iaHR0cHM6Ly9weXBpLWNhbW8uZnJlZXRscy5mYXN0bHkubmV0L2I2MTE4ODRmZjkwNDM1YTA1NzVkYmFiN2Q5YjBkM2U2MGYxMzY0NjYvNjg3NDc0NzA3MzNhMmYyZjczNzQ2ZjcyNjE2NzY1MmU2NzZmNmY2NzZjNjU2MTcwNjk3MzJlNjM2ZjZkMmY3MDc5NzA2OTJkNjE3MzczNjU3NDczMmY3MzcwNmY2ZTczNmY3MjZjNmY2NzZmNzMyZjczNzQ2MTc0NzU3MzcwNjE2NzY1MmQ3NzY4Njk3NDY1MmQ2YzZmNjc2ZjJkNTQ2NzQ3NmM2YTRhMmQ1MDJlNzA2ZTY3IiBhbHQ9IiIgbG9hZGluZz1sYXp5PgogICAgICAgICAgPHNwYW4gY2xhc3M9InNwb25zb3JzX19uYW1lIj5TdGF0dXNQYWdlPC9zcGFuPgogICAgICAgICAgPHNwYW4gY2xhc3M9InNwb25zb3JzX19zZXJ2aWNlIj4KICAgICAgICAgICAgICBTdGF0dXMgcGFnZQogICAgICAgICAgPC9zcGFuPgogICAgICAgIDwvYT4KPC9kaXY+PC9ib2R5Pgo8L2h0bWw+"};
+
+/* ============================================================
+   kod startowy dla każdego zadania
+   ============================================================ */
+const STARTERS = {
+  1: `# Task 1: how fast CAN data travel?\n\ndistance_km = float(input("Dystans w km: "))\nspeed = 200000  # km/s - light in fiber optic cable\n\n# 1. policz czas w jedna strone w milisekundach\n# 2. ping to droga tam I z powrotem\n\nprint("Minimalny mozliwy ping:", ..., "ms")\n\nreal_ping = float(input("A ile pokazal prawdziwy ping? "))\n\n# 3. porownaj real_ping z tym, co policzyles\n`,
+  2: `# Task 2: YOU are the router\nprint("=== ROUTER WARSZAWA-1 ===")\n\ndestination = input("Adres IP pakietu: ")\nttl = int(input("TTL: "))\n\n# kolejnosc pytan ma znaczenie!\n# 1. czy pakiet jeszcze zyje?  (ttl <= 0)\n# 2. czy to nasza siec?       (192.168. albo 10.)\n# 3. czy to DNS Google?       (8.8.)\n# 4. nie wiem -> trasa domyslna\n\nif ...:\n    print("DROP - pakiet umarl ze starosci.")\n`,
+  3: `# Task 3: download a real website\nimport urllib.request\n\nurl = input("Adres strony: ")\nanswer = urllib.request.urlopen(url).read().decode("utf-8", "ignore")\n\n# ile znakow ma ta strona? pokaz pierwsze 500\nprint(...)\n`
+};
+const STARTER_IN = { 1: "15350\n290", 2: "192.168.1.7\n5", 3: "http://info.cern.ch/hypertext/WWW/TheProject.html" };
+
+/* ============================================================
+   środowisko Pythona: podmieniony input(), polskie błędy,
+   bezpiecznik na nieskończoną pętlę, offline urlopen
+   ============================================================ */
+const PY_RUNNER = String.raw`
+import sys, io, builtins, traceback, base64, urllib.request as _ur
+
+_MAX_STEPS = 3000000
+_PAGES = {}
+
+class _Resp:
+    def __init__(self, text):
+        self._b = text.encode("utf-8")
+    def read(self):
+        return self._b
+    def __enter__(self):
+        return self
+    def __exit__(self, *a):
+        return False
+
+def _norm(u):
+    u = str(u).strip()
+    if u.endswith("/"):
+        u = u[:-1]
+    return u
+
+def _urlopen(url, *a, **k):
+    key = _norm(url)
+    if key in _PAGES:
+        return _Resp(_PAGES[key])
+    raise ValueError(
+        "Tego adresu nie ma w karcie: " + key + "\n"
+        "  Python dziala tu wewnatrz przegladarki i nie ma dostepu do sieci.\n"
+        "  Dolaczone strony (kliknij 'wstaw' w tabeli obok):\n"
+        + "".join("    " + k2 + "\n" for k2 in _PAGES)
+    )
+
+_ur.urlopen = _urlopen
+
+def _add_page(url, b64):
+    _PAGES[_norm(url)] = base64.b64decode(b64).decode("utf-8", "ignore")
+
+_HINTS = [
+    ("EOFError", None, "Skonczyly sie dane wejsciowe. Dodaj kolejna linie w polu 'dane wejsciowe' - jedna linia na kazdy input()."),
+    ("ValueError", "nie ma w karcie", None),
+    ("ValueError", "invalid literal for int", "int() dostal tekst, ktorego nie umie zamienic na liczbe calkowita. W danych wejsciowych musi byc sama liczba, bez kropki i bez spacji."),
+    ("ValueError", "could not convert string to float", "float() dostal tekst, ktorego nie umie zamienic na liczbe. Uzywaj kropki, nie przecinka: 12.5, a nie 12,5."),
+    ("NameError", None, "Python nie zna tej nazwy. Najczesciej to literowka w nazwie zmiennej, albo uzywasz jej wczesniej, niz ja tworzysz."),
+    ("TypeError", "can only concatenate str", "Probujesz skleic tekst z liczba przez plus. W print() rozdziel je przecinkiem: print('ping:', x)."),
+    ("TypeError", "unsupported operand", "Tych dwoch rzeczy nie da sie tak polaczyc - jedna jest tekstem, a druga liczba. Zamien tekst na liczbe przez int() albo float()."),
+    ("TypeError", "Ellipsis", "Zostal ci w kodzie znak ... z szablonu. Zamien go na swoje wyrazenie."),
+    ("SyntaxError", "invalid syntax", "Literowka w skladni. Sprawdz dwukropek na koncu linii z if, przecinki w print() i czy wszystkie nawiasy oraz cudzyslowy sa domkniete."),
+    ("SyntaxError", None, "Literowka w skladni. Najczesciej brakuje dwukropka na koncu linii z if, albo nie domkniety jest nawias."),
+    ("IndentationError", None, "Wciecie. Linijki, ktore naleza do if / elif / else, musza byc wciete o 4 spacje - i wszystkie o tyle samo."),
+    ("ZeroDivisionError", None, "Dzielenie przez zero."),
+    ("AttributeError", None, "Ten typ danych nie ma takiej funkcji. Sprawdz nazwe litera po literze - np. .startswith(), a nie .startwith()."),
+    ("TimeoutError", None, "Program dzialal zbyt dlugo i zostal zatrzymany, zeby nie zawiesic karty. Prawdopodobnie masz nieskonczona petle."),
+]
+
+def _hint_for(name, msg):
+    for ename, needle, text in _HINTS:
+        if ename == name and (needle is None or needle in msg):
+            return text
+    return None
+
+def _format_error(code):
+    etype, evalue, tb = sys.exc_info()
+    name = etype.__name__
+    msg = str(evalue)
+    src = code.split("\n")
+    line_no = None
+    if isinstance(evalue, SyntaxError) and evalue.lineno:
+        line_no = evalue.lineno
+    else:
+        mine = [f for f in traceback.extract_tb(tb) if f.filename == "twoj_kod.py"]
+        if mine:
+            line_no = mine[-1].lineno
+    parts = []
+    if line_no and 1 <= line_no <= len(src):
+        parts.append("Blad w linii " + str(line_no) + ":")
+        parts.append("    " + src[line_no - 1].strip())
+    else:
+        parts.append("Blad:")
+    parts.append(name + ": " + msg)
+    hint = _hint_for(name, msg)
+    if hint:
+        parts.append("")
+        parts.append("Co to znaczy: " + hint)
+    return "\n".join(parts)
+
+def _run(code, stdin_text):
+    lines = stdin_text.split("\n") if stdin_text.strip() != "" else []
+    pos = [0]
+    steps = [0]
+    out = io.StringIO()
+
+    def fake_input(prompt=""):
+        if pos[0] >= len(lines):
+            raise EOFError("brak kolejnej linii danych wejsciowych")
+        val = lines[pos[0]]
+        pos[0] += 1
+        out.write(str(prompt) + val + "\n")
+        return val
+
+    def guard(frame, event, arg):
+        steps[0] += 1
+        if steps[0] > _MAX_STEPS:
+            raise TimeoutError("za dlugo")
+        return guard
+
+    real_input, real_stdout = builtins.input, sys.stdout
+    builtins.input = fake_input
+    sys.stdout = out
+    err = None
+    try:
+        compiled = compile(code, "twoj_kod.py", "exec")
+        sys.settrace(guard)
+        exec(compiled, {"__name__": "__main__"})
+    except BaseException:
+        err = _format_error(code)
+    finally:
+        sys.settrace(None)
+        sys.stdout = real_stdout
+        builtins.input = real_input
+    return [out.getvalue(), err]
+`;
+
+/* ============================================================
+   ładowanie Pyodide, z kilkoma źródłami awaryjnymi
+   ============================================================ */
+const SOURCES = [
+  "https://cdn.jsdelivr.net/pyodide/v314.0.3/full/",
+  "https://cdn.jsdelivr.net/pyodide/v0.28.3/full/",
+  "https://cdnjs.cloudflare.com/ajax/libs/pyodide/0.28.3/"
+];
+
+let pyodide = null;
+const boot = document.getElementById("boot");
+const bootpct = document.getElementById("bootpct");
+const bootnote = document.getElementById("bootnote");
+
+function loadScript(src){
+  return new Promise((ok, no) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = ok;
+    s.onerror = () => no(new Error("nie udalo sie wczytac " + src));
+    document.head.appendChild(s);
+  });
+}
+
+let pct = 0;
+const ticker = setInterval(() => {
+  if (pct < 92) { pct += Math.max(1, Math.round((92 - pct) / 12)); bootpct.textContent = pct + "%"; }
+}, 260);
+
+async function bootPython(){
+  let lastErr = null;
+  for (const base of SOURCES){
+    try {
+      if (typeof loadPyodide !== "function") await loadScript(base + "pyodide.js");
+      pyodide = await loadPyodide({ indexURL: base });
+      break;
+    } catch (e) { lastErr = e; pyodide = null; }
+  }
+  clearInterval(ticker);
+
+  if (!pyodide){
+    boot.classList.add("is-fail");
+    boot.innerHTML =
+      '<div class="boot__line"><b>Nie udało się wczytać Pythona.</b></div>' +
+      '<div class="boot__line">Najczęściej blokuje to sieć szkolna. Spróbuj innej sieci albo przeglądarki, ' +
+      'a jeśli to nie pomoże — zadania możesz rozwiązać w zwykłym Pythonie, kod jest ten sam.</div>' +
+      '<div class="boot__line muted">Szczegóły: ' + (lastErr ? String(lastErr.message) : "brak") + '</div>';
+    return;
+  }
+
+  pyodide.runPython(PY_RUNNER);
+  const addPage = pyodide.globals.get("_add_page");
+  for (const [url, b64] of Object.entries(PAGES_B64)) addPage(url, b64);
+  addPage.destroy();
+
+  boot.classList.add("is-ready");
+  boot.innerHTML =
+    '<div class="boot__line"><b>Python gotowy.</b> Wersja: ' +
+    pyodide.runPython("import sys; sys.version.split()[0]") +
+    ', działa na twoim komputerze.</div>' +
+    '<div class="boot__line muted">Skrót: Ctrl+Enter uruchamia kod, w którym właśnie piszesz.</div>';
+  document.querySelectorAll("[data-run]").forEach(b => { b.disabled = false; });
+}
+
+/* ============================================================
+   uruchamianie zadań
+   ============================================================ */
+const done = { 1:false, 2:false, 3:false };
+
+function paint(n, out, err){
+  const box = document.getElementById("out" + n);
+  box.classList.remove("is-ok", "is-err");
+  box.classList.add(err ? "is-err" : "is-ok");
+  box.textContent = "";
+  if (!out.trim() && !err){
+    const s = document.createElement("span");
+    s.className = "muted";
+    s.textContent = "Program się wykonał, ale nic nie wypisał. Brakuje print()?";
+    box.appendChild(s);
+    return;
+  }
+  if (out){
+    const s = document.createElement("span");
+    s.textContent = out.replace(/\n$/, "");
+    box.appendChild(s);
+  }
+  if (err){
+    const s = document.createElement("span");
+    s.className = "err";
+    s.textContent = (out ? "\n\n" : "") + err;
+    box.appendChild(s);
+  }
+}
+
+function markDone(n){
+  if (done[n]) return;
+  done[n] = true;
+  const dot = document.getElementById("dot" + n);
+  dot.textContent = "\u2713";
+  dot.parentElement.classList.add("is-done");
+  const count = Object.values(done).filter(Boolean).length;
+  document.getElementById("fill").style.width =
+    "calc((100% - 18px) * " + (count / 3) + ")";
+}
+
+function run(n){
+  if (!pyodide) return;
+  const code = document.getElementById("code" + n).value;
+  const stdin = document.getElementById("in" + n).value;
+  const btn = document.querySelector('[data-run="' + n + '"]');
+  btn.disabled = true;
+  btn.textContent = "Liczę…";
+  setTimeout(() => {
+    let out = "", err = null;
+    try {
+      const fn = pyodide.globals.get("_run");
+      const proxy = fn(code, stdin);
+      const res = proxy.toJs();
+      proxy.destroy();
+      fn.destroy();
+      out = res[0] || "";
+      err = res[1] || null;
+    } catch (e) {
+      err = "Coś poszło nie tak przy uruchamianiu: " + e.message;
+    }
+    paint(n, out, err);
+    // szablon jeszcze nie dokonczony (zostalo ...), wiec to nie jest rozwiazanie
+    if (!err && out.trim() && !code.includes("...")) markDone(n);
+    btn.disabled = false;
+    btn.textContent = "Uruchom";
+  }, 10);
+}
+
+/* ============================================================
+   edytor: Tab, auto-wcięcie, Ctrl+Enter
+   ============================================================ */
+function wireEditor(ta, n){
+  ta.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)){
+      e.preventDefault(); run(n); return;
+    }
+    if (e.key === "Tab"){
+      e.preventDefault();
+      const s = ta.selectionStart, t = ta.selectionEnd;
+      ta.value = ta.value.slice(0, s) + "    " + ta.value.slice(t);
+      ta.selectionStart = ta.selectionEnd = s + 4;
+      return;
+    }
+    if (e.key === "Enter"){
+      const s = ta.selectionStart;
+      const lineStart = ta.value.lastIndexOf("\n", s - 1) + 1;
+      const line = ta.value.slice(lineStart, s);
+      let indent = (line.match(/^[ ]*/) || [""])[0];
+      if (line.trimEnd().endsWith(":")) indent += "    ";
+      if (!indent) return;
+      e.preventDefault();
+      const t = ta.selectionEnd;
+      ta.value = ta.value.slice(0, s) + "\n" + indent + ta.value.slice(t);
+      ta.selectionStart = ta.selectionEnd = s + 1 + indent.length;
+    }
+  });
+}
+
+/* ============================================================
+   podłączenie interfejsu
+   ============================================================ */
+[1,2,3].forEach(n => {
+  document.getElementById("code" + n).value = STARTERS[n];
+  document.getElementById("in" + n).value = STARTER_IN[n];
+  wireEditor(document.getElementById("code" + n), n);
+});
+
+document.querySelectorAll("[data-run]").forEach(b =>
+  b.addEventListener("click", () => run(Number(b.dataset.run))));
+
+document.querySelectorAll("[data-reset]").forEach(b =>
+  b.addEventListener("click", () => {
+    const n = Number(b.dataset.reset);
+    if (!confirm("Przywrócić kod startowy? Twoja wersja zniknie.")) return;
+    document.getElementById("code" + n).value = STARTERS[n];
+  }));
+
+document.querySelectorAll("[data-fill]").forEach(b =>
+  b.addEventListener("click", () => {
+    const n = Number(b.dataset.fill);
+    const box = document.getElementById("in" + n);
+    if (n === 1) box.value = b.dataset.d + "\n" + b.dataset.p;
+    if (n === 2) box.value = b.dataset.ip + "\n" + b.dataset.ttl;
+    if (n === 3) box.value = b.dataset.url;
+    box.focus();
+  }));
+
+document.querySelectorAll("[data-go]").forEach(b =>
+  b.addEventListener("click", () =>
+    document.getElementById(b.dataset.go).scrollIntoView({behavior:"smooth", block:"start"})));
+
+document.getElementById("save").addEventListener("click", () => {
+  const stamp = new Date().toLocaleString("pl-PL");
+  let txt = "Jak dziala internet? - moje rozwiazania\n" + stamp + "\n";
+  [1,2,3].forEach(n => {
+    txt += "\n\n===== ZADANIE " + n + " =====\n";
+    txt += document.getElementById("code" + n).value;
+    txt += "\n----- dane wejsciowe -----\n" + document.getElementById("in" + n).value;
+    txt += "\n----- wyjscie -----\n" + document.getElementById("out" + n).textContent;
+  });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([txt], {type:"text/plain;charset=utf-8"}));
+  a.download = "internet-moje-rozwiazania.txt";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+bootPython();
+</script>
+</body>
+</html>
